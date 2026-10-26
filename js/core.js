@@ -29,11 +29,12 @@
   };
 
   /* ---------- Definições ---------- */
-  const DEFAULTS = { theme: "auto", sound: true, vibrate: true, name: "" };
+  const DEFAULTS = { theme: "auto", anim: "auto", sound: true, vibrate: true, name: "" };
   const settings = Object.assign({}, DEFAULTS, store.get("settings", {}));
   function setSetting(k, v) {
     settings[k] = v; store.set("settings", settings);
     if (k === "theme") applyTheme();
+    if (k === "anim") applyMotion();
     /* As pontuações guardadas antes de haver nome passam a usar o nome escolhido. */
     if (k === "name" && v) { const all = store.get("rank", {}); let ch = false; for (const key in all) for (const e of all[key]) if (e.name === "Eu") { e.name = v; ch = true; } if (ch) store.set("rank", all); }
   }
@@ -50,8 +51,12 @@
   darkMQ.addEventListener ? darkMQ.addEventListener("change", applyTheme) : darkMQ.addListener(applyTheme);
   applyTheme();
 
+  /* Animações: "auto" segue o sistema (Reduzir movimento), "always" liga sempre, "reduced" desliga. */
   const motionMQ = matchMedia("(prefers-reduced-motion: reduce)");
-  const motion = () => !motionMQ.matches;
+  const motion = () => settings.anim === "always" ? true : settings.anim === "reduced" ? false : !motionMQ.matches;
+  function applyMotion() { document.documentElement.classList.toggle("anim", motion()); }
+  motionMQ.addEventListener ? motionMQ.addEventListener("change", applyMotion) : motionMQ.addListener(applyMotion);
+  applyMotion();
 
   /* ---------- Som (sintetizado, sem ficheiros) ---------- */
   let ac = null;
@@ -303,6 +308,9 @@
     const fTheme = el("div", { class: "field col" }, '<span class="lbl">Tema</span>');
     fTheme.appendChild(ui.seg([{ id: "auto", label: "Automático" }, { id: "light", label: "Claro" }, { id: "dark", label: "Escuro" }], settings.theme, v => setSetting("theme", v), "Tema"));
     box.appendChild(fTheme);
+    const fAnim = el("div", { class: "field col" }, '<span class="lbl">Animações<small>"Automáticas" segue a opção de reduzir movimento do sistema.</small></span>');
+    fAnim.appendChild(ui.seg([{ id: "auto", label: "Automáticas" }, { id: "always", label: "Sempre" }, { id: "reduced", label: "Reduzidas" }], settings.anim, v => setSetting("anim", v), "Animações"));
+    box.appendChild(fAnim);
     const sw = (key, label, small) => {
       const f = el("div", { class: "field" }, '<div><span class="lbl" id="lbl-' + key + '">' + label + '</span>' + (small ? "<small>" + small + "</small>" : "") + "</div>");
       const b = el("button", { class: "switch", role: "switch", "aria-checked": String(!!settings[key]), "aria-labelledby": "lbl-" + key });

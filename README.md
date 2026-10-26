@@ -30,7 +30,7 @@ No Android, ou no Chrome e no Edge do computador, a opção chama-se "Instalar a
 Sem frameworks nem compilação: o GitHub Pages serve os ficheiros tal como estão.
 
 ## Atualizar
-Depois de alterar ficheiros, subir a versão em `sw.js` (`sala-v4` → `sala-v5`) para os aparelhos já instalados receberem a cópia nova. Se acrescentares ficheiros, junta-os também à lista `CORE`.
+Depois de alterar ficheiros, subir a versão em `sw.js` (`sala-v5` → `sala-v6`) para os aparelhos já instalados receberem a cópia nova. Se acrescentares ficheiros, junta-os também à lista `CORE`.
 
 ## Privacidade
 A app não tem contas, publicidade nem estatísticas, e não envia dados para lado nenhum. Os jogos a meio, as definições e o ranking ficam guardados apenas no armazenamento local do teu browser. O tipo de letra é carregado do Google Fonts na primeira utilização.

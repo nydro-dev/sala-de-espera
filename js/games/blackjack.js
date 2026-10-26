@@ -51,7 +51,7 @@
     S.dealer = [draw()];
     S.hands[0].cards.push(draw()); S.dealer.push(draw());
     S.bet = 0; S.active = 0; S.reveal = false; S.note = ""; S.phase = "play"; seen = {};
-    sound.place();
+    if (!motion()) sound.place();
     const up = cval(S.dealer[0]);
     if ((up === 11 || up === 10) && value(S.dealer).total === 21) { finishRound(); return; } /* a banca espreita */
     if (isBJ(S.hands[0])) { finishRound(); return; }
@@ -141,7 +141,7 @@
     els = c; seen = {};
     c.stats.innerHTML = C.statsHtml("bj");
     const table = el("div", { class: "table", id: "bj-table" });
-    table.innerHTML =
+    table.innerHTML = '<div class="bj-shoe" id="bj-shoe" aria-hidden="true"><i></i><i></i><i></i></div>' +
       '<div class="bj-zone"><div class="lbl">Banca <span class="val" id="bj-dv"></span></div><div class="bj-cards" id="bj-dealer"></div></div>' +
       '<div class="note" id="bj-note" role="status"></div>' +
       '<div class="bj-zone"><div class="bj-hands" id="bj-hands"></div><div class="lbl">Tu</div></div>';
@@ -171,6 +171,18 @@
     const s = suit(c), red = s === 1 || s === 2;
     return '<div class="pcard ' + (red ? "red " : "") + cls + '" style="--d:' + delay + 'ms" aria-label="' + RANKS[rank(c)] + " de " + ["espadas", "copas", "ouros", "paus"][s] + '"><span class="r">' + RANKS[rank(c)] + '</span><span class="s">' + SUITS[s] + '</span><span class="big">' + SUITS[s] + "</span></div>";
   }
+  /* Cada carta nova parte do sapato, voltada para baixo, e vira-se ao chegar ao lugar. */
+  function flyFromShoe() {
+    const shoe = document.getElementById("bj-shoe"); if (!shoe) return;
+    const sr = shoe.getBoundingClientRect(), sx = sr.left + sr.width / 2, sy = sr.top + sr.height / 2;
+    els.board.querySelectorAll(".pcard.todeal").forEach(card => {
+      const r = card.getBoundingClientRect();
+      card.style.setProperty("--fx", (sx - (r.left + r.width / 2)) + "px");
+      card.style.setProperty("--fy", (sy - (r.top + r.height / 2)) + "px");
+      card.classList.remove("todeal"); card.classList.add("deal");
+      later(() => sound.place(), parseInt(card.style.getPropertyValue("--d")) || 0);
+    });
+  }
   function valText(cards) { const v = value(cards); return v.soft && v.total < 21 ? (v.total - 10) + " / " + v.total : String(v.total); }
 
   function render(first) {
@@ -182,7 +194,7 @@
     d.innerHTML = S.dealer.map((c, i) => {
       const hidden = i === 1 && !S.reveal;
       let cls = "";
-      if (anim && i >= prevD) cls = "deal";
+      if (anim && i >= prevD) cls = "todeal";
       else if (anim && i === 1 && wasHidden && S.reveal) cls = "flip";
       /* Cartas iniciais intercaladas com as do jogador; as que a banca tira no fim vêm uma a uma. */
       const delay = i < 2 ? i * 240 + 120 : (i - 1) * 450;
@@ -195,7 +207,7 @@
     hs.classList.toggle("two", S.hands.length > 1);
     hs.innerHTML = S.hands.map((h, k) => {
       const prev = seen["h" + k] || 0;
-      const cards = h.cards.map((c, i) => cardHtml(c, false, anim && i >= prev ? "deal" : "", anim ? (prev === 0 ? i * 240 : (i - prev) * 160) : 0)).join("");
+      const cards = h.cards.map((c, i) => cardHtml(c, false, anim && i >= prev ? "todeal" : "", anim ? (prev === 0 ? i * 240 : (i - prev) * 160) : 0)).join("");
       seen["h" + k] = h.cards.length;
       const resCls = h.res === "Ganhou" || h.res === "Blackjack" ? " win" : "";
       const showRes = S.phase === "bet" && h.res;
@@ -203,6 +215,7 @@
         (showRes ? '<span class="res' + resCls + '" data-later>' + h.res + "</span>" : "") + "</div>";
     }).join("") || '<div class="lbl" style="min-height:calc(var(--cw) * 1.4)">Faz a tua aposta</div>';
     if (anim && S.phase === "bet") hs.querySelectorAll("[data-later]").forEach(x => x.hidden = true);
+    if (anim) flyFromShoe();
     /* Botões */
     const betting = S.phase === "bet";
     document.getElementById("bj-betrow").hidden = !betting;

@@ -71,10 +71,8 @@ h1,h2,h3{margin:0;line-height:1.15}
 .btn.ghost{background:transparent}
 .btn.block{width:100%}
 @media (hover:none){.btn:hover,.icon-btn:hover{border-color:var(--line)}.btn.primary:hover{filter:none}}
-@media (prefers-reduced-motion:no-preference){
-  .btn,.icon-btn,.card{transition:transform .12s ease,border-color .12s,background-color .15s}
-  .btn:active:not(:disabled),.icon-btn:active{transform:scale(.96)}
-}
+:root.anim .btn,:root.anim .icon-btn,:root.anim .card{transition:transform .12s ease,border-color .12s,background-color .15s}
+:root.anim .btn:active:not(:disabled),:root.anim .icon-btn:active{transform:scale(.96)}
 
 /* Seletor segmentado (dificuldade, tema) */
 .seg{display:flex;padding:3px;gap:2px;background:var(--sunken);border-radius:12px;border:1px solid var(--line)}
@@ -158,10 +156,8 @@ dialog::backdrop{background:rgba(10,9,12,.55)}
 .modal-foot{display:flex;gap:8px;padding:8px 20px 20px;flex-wrap:wrap}
 .modal-foot:empty{display:none}
 .modal-foot .btn{flex:1}
-@media (prefers-reduced-motion:no-preference){
-  dialog[open] .modal-card{animation:pop-in .22s cubic-bezier(.2,.9,.3,1.2)}
-  dialog[open]::backdrop{animation:fade .2s}
-}
+:root.anim dialog[open] .modal-card{animation:pop-in .22s cubic-bezier(.2,.9,.3,1.2)}
+:root.anim dialog[open]::backdrop{animation:fade .2s}
 @keyframes pop-in{from{transform:translateY(12px) scale(.96);opacity:0}}
 @keyframes fade{from{opacity:0}}
 
@@ -209,13 +205,11 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 .toast.show{opacity:1;transform:translate(-50%,0)}
 #fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:60}
 
-@media (prefers-reduced-motion:no-preference){
-  .view{animation:view-in .25s ease}
-}
+:root.anim .view{animation:view-in .25s ease}
 @keyframes view-in{from{opacity:0;transform:translateY(6px)}}
 @keyframes shake{10%,90%{transform:translateX(-1px)}20%,80%{transform:translateX(3px)}30%,50%,70%{transform:translateX(-6px)}40%,60%{transform:translateX(6px)}}
 .shake{animation:shake .45s}
-@media (prefers-reduced-motion:reduce){.shake{animation:none}}
+:root:not(.anim) .shake{animation:none}
 
 
 /* ===================== Sudoku ===================== */
@@ -239,13 +233,11 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 .sc.sel .notes{color:var(--on-accent)}
 .notes .m{color:var(--blue-ink);font-weight:900}
 .sc.sel .notes .m{color:var(--on-accent)}
-/* As animações só são ligadas pelo código quando o sistema não pede menos movimento. */
-@media (prefers-reduced-motion:no-preference){
-  .sc{transition:background-color .12s,color .12s}
-  .sc.pop{animation:pop .25s cubic-bezier(.2,.9,.3,1.4) both;animation-delay:var(--d,0ms)}
-  .sc.err.pop{animation:pop .25s,shake .35s}
-  .sc.wave{animation:wave .7s ease both;animation-delay:var(--d,0ms)}
-}
+/* As animações só existem com a classe .anim na raiz (definições: Automáticas, Sempre ou Reduzidas). */
+:root.anim .sc{transition:background-color .12s,color .12s}
+:root.anim .sc.pop{animation:pop .25s cubic-bezier(.2,.9,.3,1.4) both;animation-delay:var(--d,0ms)}
+:root.anim .sc.err.pop{animation:pop .25s,shake .35s}
+:root.anim .sc.wave{animation:wave .7s ease both;animation-delay:var(--d,0ms)}
 @keyframes pop{0%{transform:scale(.6)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
 @keyframes wave{0%,100%{}35%{background:var(--yellow);color:var(--on-accent)}}
 
@@ -254,7 +246,7 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 .pad button .left{position:absolute;bottom:2px;left:0;right:0;font-size:.6rem;color:var(--muted);font-weight:500}
 .pad button:disabled{opacity:.3;cursor:default}
 .pad.notes-on button{color:var(--blue-ink);background:var(--blue-softer);border-color:color-mix(in srgb,var(--blue) 40%,var(--line))}
-@media (prefers-reduced-motion:no-preference){.pad button:active:not(:disabled){transform:scale(.93)}}
+:root.anim .pad button:active:not(:disabled){transform:scale(.93)}
 @media (min-width:900px){
   .controls .pad{grid-template-columns:repeat(3,1fr);gap:8px}
   .controls .pad button{padding:14px 0 16px;font-size:1.5rem}
@@ -276,12 +268,10 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 .mc.boom svg circle,.mc.boom svg path{fill:#fff;stroke:#fff}
 .mc.wrong{background:var(--bad-soft)}
 .mc svg{width:64%;height:64%;overflow:visible}
-@media (prefers-reduced-motion:no-preference){
-  .mc.o{animation:open-in .22s ease both;animation-delay:var(--d,0ms)}
-  .mc.flagged svg{animation:pop .22s cubic-bezier(.2,.9,.3,1.4)}
-  .mc.mine-show{animation:pop .3s ease both;animation-delay:var(--d,0ms)}
-  .mc.boom{animation:boom .5s ease}
-}
+:root.anim .mc.o{animation:open-in .22s ease both;animation-delay:var(--d,0ms)}
+:root.anim .mc.flagged svg{animation:pop .22s cubic-bezier(.2,.9,.3,1.4)}
+:root.anim .mc.mine-show{animation:pop .3s ease both;animation-delay:var(--d,0ms)}
+:root.anim .mc.boom{animation:boom .5s ease}
 @keyframes open-in{from{transform:scale(.7);opacity:.2}}
 @keyframes boom{0%{transform:scale(1);box-shadow:0 0 0 0 var(--bad)}40%{transform:scale(1.35)}100%{transform:scale(1);box-shadow:0 0 0 18px transparent}}
 .minas-mode{display:grid;grid-template-columns:1fr 1fr;gap:6px}
@@ -295,10 +285,12 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 .chip-btn span{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:var(--cc);border:2px dashed rgba(255,255,255,.7)}
 .chip-btn.c10{--cc:#B8B8B8}.chip-btn.c25{--cc:#09B5FF}.chip-btn.c100{--cc:#FFC301}.chip-btn.c500{--cc:#1A181D}.chip-btn.c500 span{color:#fff}
 .chip-btn[aria-pressed="true"]{outline:3px solid var(--blue);outline-offset:3px}
-@media (prefers-reduced-motion:no-preference){.chip-btn{transition:transform .12s}.chip-btn:active{transform:scale(.92)}.chip-btn[aria-pressed="true"]{transform:translateY(-3px)}}
+:root.anim .chip-btn{transition:transform .12s}
+:root.anim .chip-btn:active{transform:scale(.92)}
+:root.anim .chip-btn[aria-pressed="true"]{transform:translateY(-3px)}
 .casino-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .casino-actions .btn{min-height:48px}
-.table{width:100%;background:radial-gradient(ellipse at 50% 0%,color-mix(in srgb,var(--felt) 85%,#fff) 0%,var(--felt) 60%);color:var(--felt-ink);border-radius:18px;padding:16px 12px;display:flex;flex-direction:column;gap:14px;box-shadow:inset 0 0 0 6px color-mix(in srgb,var(--felt) 70%,#000),var(--shadow)}
+.table{position:relative;width:100%;background:radial-gradient(ellipse at 50% 0%,color-mix(in srgb,var(--felt) 85%,#fff) 0%,var(--felt) 60%);color:var(--felt-ink);border-radius:18px;padding:16px 12px;display:flex;flex-direction:column;gap:14px;box-shadow:inset 0 0 0 6px color-mix(in srgb,var(--felt) 70%,#000),var(--shadow)}
 .table .lbl{font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.85;display:flex;gap:8px;align-items:center;justify-content:center}
 .table .val{display:inline-block;min-width:2.2em;padding:1px 8px;border-radius:999px;background:rgba(0,0,0,.28);font-size:.85rem;letter-spacing:0;text-transform:none}
 .table .note{min-height:1.4em;text-align:center;font-weight:700;font-size:1rem}
@@ -320,14 +312,24 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 .pcard .s{position:absolute;top:calc(var(--cw) * .3);left:6px;font-size:calc(var(--cw) * .2);line-height:1}
 .pcard .big{position:absolute;right:6px;bottom:4px;font-size:calc(var(--cw) * .48);line-height:1}
 .pcard.red{color:var(--red-suit)}
-.pcard.back{background:repeating-linear-gradient(45deg,#09B5FF 0 6px,#0790CC 6px 12px);border:4px solid #fff}
+.pcard.back,.pcard::after{background:repeating-linear-gradient(45deg,#09B5FF 0 6px,#0790CC 6px 12px);border:4px solid #fff}
+.pcard::after{content:"";position:absolute;inset:0;border-radius:inherit;opacity:0;pointer-events:none}
+.pcard.back::after{display:none}
+.bj-shoe{position:absolute;top:12px;right:12px;width:calc(var(--cw,60px) * .62);aspect-ratio:5/7;--cw:clamp(52px,14.5vw,74px)}
+.bj-shoe i{position:absolute;inset:0;border-radius:6px;background:repeating-linear-gradient(45deg,#09B5FF 0 5px,#0790CC 5px 10px);border:3px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,.35)}
+.bj-shoe i:nth-child(2){transform:translate(-3px,3px)}.bj-shoe i:nth-child(3){transform:translate(-6px,6px)}
 .pcard.back *{display:none}
-@media (prefers-reduced-motion:no-preference){
-  .pcard.deal{animation:deal .38s cubic-bezier(.2,.8,.3,1) both;animation-delay:var(--d,0ms)}
-  .pcard.flip{animation:flip .45s ease both}
-}
-@keyframes deal{from{transform:translate(40vw,-40vh) rotate(-25deg);opacity:0}}
-@keyframes flip{0%{transform:rotateY(180deg) scale(1.05)}100%{transform:rotateY(0)}}
+:root.anim .pcard.deal{animation:deal .62s cubic-bezier(.25,.8,.3,1) both;animation-delay:var(--d,0ms)}
+:root.anim .pcard.deal::after{animation:backon .62s linear both;animation-delay:var(--d,0ms)}
+:root.anim .pcard.back.deal{animation-name:slide}
+:root.anim .pcard.todeal{visibility:hidden}
+:root.anim .pcard.flip{animation:flipx .45s ease both}
+:root.anim .pcard.flip::after{animation:backoff .45s linear both}
+@keyframes deal{0%{transform:translate(var(--fx,40vw),var(--fy,-30vh)) rotate(-16deg) scale(.62)}62%{transform:translate(0,0) rotate(0) scaleX(1)}80%{transform:scaleX(0)}100%{transform:scaleX(1)}}
+@keyframes slide{0%{transform:translate(var(--fx,40vw),var(--fy,-30vh)) rotate(-16deg) scale(.62)}100%{transform:none}}
+@keyframes backon{0%,79.9%{opacity:1}80%,100%{opacity:0}}
+@keyframes flipx{0%{transform:scaleX(1)}50%{transform:scaleX(0)}100%{transform:scaleX(1)}}
+@keyframes backoff{0%,49.9%{opacity:1}50%,100%{opacity:0}}
 
 /* ===================== Roleta ===================== */
 .rl-layout{display:flex;flex-direction:column;align-items:center;gap:14px;width:100%}
@@ -335,6 +337,7 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 @media (min-width:900px){.rl-layout{flex-direction:row;align-items:flex-start;justify-content:center;gap:24px}.rl-left{width:auto;flex:1;max-width:320px;position:sticky;top:12px}.rl-board{flex:1}}
 .rl-wheel{position:relative;width:min(300px,78vw);aspect-ratio:1;max-width:100%}
 .rl-wheel canvas{width:100%;height:100%;display:block}
+.rl-ballmark{position:absolute;left:0;top:0;width:5.5%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff 0 25%,#dcdcdc 55%,#8f8f8f 100%);box-shadow:0 2px 3px rgba(0,0,0,.55);pointer-events:none;will-change:transform;z-index:1}
 .rl-wheel .ptr{position:absolute;left:50%;top:-4px;transform:translateX(-50%);width:0;height:0;border-left:11px solid transparent;border-right:11px solid transparent;border-top:20px solid var(--yellow);filter:drop-shadow(0 2px 2px rgba(0,0,0,.4))}
 .rl-result{display:flex;align-items:center;justify-content:center;gap:10px;font-weight:700}
 .rl-ball{display:inline-grid;place-items:center;min-width:44px;height:44px;padding:0 8px;border-radius:50%;font-size:1.25rem;font-weight:900;color:#fff;background:var(--line-strong)}
@@ -352,5 +355,5 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 .rl-cell:hover{filter:brightness(1.15)}
 .rl-cell.hit{box-shadow:0 0 0 3px var(--yellow) inset}
 .rl-cell .stake{position:absolute;inset:0;margin:auto;width:max-content;min-width:26px;height:26px;padding:0 4px;border-radius:13px;display:grid;place-items:center;font-size:.68rem;font-weight:900;background:var(--yellow);color:var(--on-accent);border:2px dashed #fff;z-index:1;pointer-events:none}
-@media (prefers-reduced-motion:no-preference){.rl-cell .stake{animation:pop .2s ease}}
+:root.anim .rl-cell .stake{animation:pop .2s ease}
 @media (min-width:900px){.rl-cell{min-height:38px}}

@@ -20,7 +20,7 @@
 <link rel="stylesheet" href="css/base.css">
 <script>
 /* Aplica o tema antes de desenhar, para não piscar. */
-(function(){try{var s=JSON.parse(localStorage.getItem("sde:settings")||"{}");if(s.theme==="light"||s.theme==="dark")document.documentElement.dataset.theme=s.theme}catch(e){}})();
+(function(){try{var s=JSON.parse(localStorage.getItem("sde:settings")||"{}");if(s.theme==="light"||s.theme==="dark")document.documentElement.dataset.theme=s.theme;var r=s.anim==="always"||(s.anim!=="reduced"&&!matchMedia("(prefers-reduced-motion: reduce)").matches);if(r)document.documentElement.classList.add("anim")}catch(e){}})();
 </script>
 </head>
 <body>
