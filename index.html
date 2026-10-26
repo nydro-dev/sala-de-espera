@@ -2,337 +2,85 @@
 <html lang="pt-PT">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<meta name="theme-color" content="#eef1f4" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#12171d" media="(prefers-color-scheme: dark)">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#F2F2F3">
+<meta name="color-scheme" content="light dark">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Sala de Espera">
+<meta name="description" content="Sudoku e Minas para os intervalos, com ranking local.">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icon-192.png">
 <title>Sala de Espera</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Figtree:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
-<style>
-html{-webkit-text-size-adjust:100%}
-:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-body{margin:0;-webkit-tap-highlight-color:transparent}
-[hidden]{display:none!important}
-/* Layout: one centred column, tab switch on top, board as the hero, controls beneath. */
-:root{
-  --bg:#eef1f4; --panel:#ffffff; --ink:#1b2430; --muted:#5d6b7a; --line:#c9d1da; --line-strong:#3a4656;
-  --accent:#2f6f8f; --accent-soft:#d6e6ee; --given:#1b2430; --user:#2f6f8f; --bad:#b4372f; --bad-soft:#f6dcda;
-  --hl:#e6ecf2; --same:#cfe0ea; --cover:#d5dce4; --cover-hi:#e3e8ee; --open:#f7f9fb; --flag:#c2552c;
-  --n1:#2f6f8f; --n2:#3c7d3a; --n3:#b4372f; --n4:#3b3f8f; --n5:#7a3a2a; --n6:#2a7a77; --n7:#1b2430; --n8:#6b7380;
-  --display:"Unbounded",system-ui,sans-serif; --body:"Figtree",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
-}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#12171d; --panel:#1a2129; --ink:#e3e9ef; --muted:#93a1b0; --line:#2d3743; --line-strong:#8795a5;
-  --accent:#6fb1d1; --accent-soft:#1f3540; --given:#e3e9ef; --user:#7dc0e0; --bad:#ef7a70; --bad-soft:#3d2422;
-  --hl:#212a34; --same:#24404e; --cover:#2c3642; --cover-hi:#36424f; --open:#161c23; --flag:#f08a5d;
-  --n1:#7dc0e0; --n2:#86c77f; --n3:#ef7a70; --n4:#a4a8f0; --n5:#d79a7d; --n6:#6fd0c9; --n7:#e3e9ef; --n8:#9aa4b0; color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#12171d; --panel:#1a2129; --ink:#e3e9ef; --muted:#93a1b0; --line:#2d3743; --line-strong:#8795a5;
-  --accent:#6fb1d1; --accent-soft:#1f3540; --given:#e3e9ef; --user:#7dc0e0; --bad:#ef7a70; --bad-soft:#3d2422;
-  --hl:#212a34; --same:#24404e; --cover:#2c3642; --cover-hi:#36424f; --open:#161c23; --flag:#f08a5d;
-  --n1:#7dc0e0; --n2:#86c77f; --n3:#ef7a70; --n4:#a4a8f0; --n5:#d79a7d; --n6:#6fd0c9; --n7:#e3e9ef; --n8:#9aa4b0; color-scheme:dark}
-body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px}
-.wrap{max-width:560px;margin:0 auto;padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:16px}
-header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
-h1{font-family:var(--display);font-weight:700;font-size:1.35rem;margin:0;letter-spacing:-.01em;text-wrap:balance}
-.tabs{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:3px}
-.tabs button{font:600 .85rem var(--body);border:0;background:none;color:var(--muted);padding:6px 14px;border-radius:999px;cursor:pointer}
-.tabs button[aria-selected="true"]{background:var(--accent);color:var(--panel)}
-button:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.bar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
-.stat{font:600 .95rem var(--mono);font-variant-numeric:tabular-nums;color:var(--ink)}
-.stat small{font:500 .7rem var(--body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-right:6px}
-select,.btn{font:600 .85rem var(--body);background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer}
-.btn.on{background:var(--accent);border-color:var(--accent);color:var(--panel)}
-.btn:hover{border-color:var(--line-strong)}
-.msg{min-height:1.4em;font-weight:600;color:var(--accent);text-align:center}
-.msg.bad{color:var(--bad)}
-
-/* Sudoku */
-.sgrid{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));grid-template-rows:repeat(9,minmax(0,1fr));aspect-ratio:1;width:100%;max-width:100%;background:var(--panel);border:2px solid var(--line-strong);border-radius:6px;overflow:hidden;user-select:none}
-.sc{position:relative;display:flex;align-items:center;justify-content:center;border-right:1px solid var(--line);border-bottom:1px solid var(--line);font:600 clamp(1.1rem,5vw,1.6rem) var(--mono);color:var(--user);cursor:pointer}
-.sc:nth-child(9n){border-right:0}
-.sc:nth-child(9n+3),.sc:nth-child(9n+6){border-right:2px solid var(--line-strong)}
-.sc:nth-child(n+19):nth-child(-n+27),.sc:nth-child(n+46):nth-child(-n+54){border-bottom:2px solid var(--line-strong)}
-.sc:nth-child(n+73){border-bottom:0}
-.sc.given{color:var(--given)}
-.sc.peer{background:var(--hl)}
-.sc.same{background:var(--same)}
-.sc.sel{background:var(--accent-soft);box-shadow:inset 0 0 0 2px var(--accent)}
-.sc.err{color:var(--bad);background:var(--bad-soft)}
-.notes{position:absolute;inset:2px;display:grid;grid-template-columns:repeat(3,1fr);font:500 clamp(.5rem,2vw,.68rem) var(--mono);color:var(--muted);text-align:center;align-items:center}
-.pad{display:grid;grid-template-columns:repeat(9,1fr);gap:6px}
-.pad button{font:600 1.15rem var(--mono);background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:10px 0;cursor:pointer;position:relative}
-.pad button .left{position:absolute;bottom:1px;right:4px;font-size:.55rem;color:var(--muted)}
-.pad button:disabled{opacity:.35;cursor:default}
-.tools{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
-
-/* Minas */
-.mscroll{overflow-x:auto;max-width:100%;padding-bottom:4px}
-.mgrid{display:grid;gap:2px;width:max-content;margin:0 auto;background:var(--line);border:2px solid var(--line);border-radius:6px;user-select:none;-webkit-user-select:none;touch-action:manipulation}
-.mc{width:var(--cs,30px);height:var(--cs,30px);display:flex;align-items:center;justify-content:center;background:var(--cover);font:600 calc(var(--cs,30px)*.55) var(--mono);cursor:pointer;border-radius:2px}
-.mc:hover{background:var(--cover-hi)}
-.mc.o{background:var(--open);cursor:default}
-.mc.boom{background:var(--bad)}
-.mc.wrong{background:var(--bad-soft)}
-.mc svg{width:62%;height:62%}
-.legend{font-size:.8rem;color:var(--muted);text-align:center;line-height:1.5}
-@media (prefers-reduced-motion:no-preference){.sc,.mc{transition:background .12s}}
-</style>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap">
+<link rel="stylesheet" href="css/base.css">
+<script>
+/* Aplica o tema antes de desenhar, para não piscar. */
+(function(){try{var s=JSON.parse(localStorage.getItem("sde:settings")||"{}");if(s.theme==="light"||s.theme==="dark")document.documentElement.dataset.theme=s.theme}catch(e){}})();
+</script>
 </head>
 <body>
 
-<div class="wrap">
-  <header>
-    <h1>Sala de Espera</h1>
-    <div class="tabs" role="tablist">
-      <button role="tab" id="t-sudoku" aria-selected="true" data-tab="sudoku">Sudoku</button>
-      <button role="tab" id="t-minas" aria-selected="false" data-tab="minas">Minas</button>
-    </div>
-  </header>
+<div id="app">
 
-  <section id="sudoku">
-    <div style="display:flex;flex-direction:column;gap:12px">
-      <div class="bar">
-        <select id="sdiff" aria-label="Dificuldade">
-          <option value="easy">Fácil</option><option value="medium" selected>Médio</option><option value="hard">Difícil</option>
-        </select>
-        <span class="stat"><small>Erros</small><span id="serr">0</span></span>
-        <span class="stat"><small>Tempo</small><span id="stime">0:00</span></span>
-        <button class="btn" id="snew">Novo jogo</button>
+  <!-- Menu de entrada -->
+  <main class="view menu" id="v-menu">
+    <header class="menu-head">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i class="dot"></i></span>
+        <div>
+          <h1>Sala de Espera</h1>
+          <p class="sub">Jogos curtos para os intervalos</p>
+        </div>
       </div>
-      <div class="sgrid" id="sgrid"></div>
-      <div class="msg" id="smsg"></div>
-      <div class="pad" id="spad"></div>
-      <div class="tools">
-        <button class="btn" id="snotes">Notas: não</button>
-        <button class="btn" id="serase">Apagar</button>
-        <button class="btn" id="sundo">Desfazer</button>
-        <button class="btn" id="shint">Pista</button>
+      <div class="head-actions">
+        <button class="icon-btn" id="m-rank" aria-label="Ranking"><svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3a3 3 0 0 1-3 4M7 5H4a3 3 0 0 0 3 4"/></svg></button>
+        <button class="icon-btn" id="m-settings" aria-label="Definições"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
       </div>
-      <p class="legend">Teclado: setas para mover, 1–9 para escrever, N para notas, Backspace para apagar.</p>
-    </div>
-  </section>
+    </header>
+    <section class="cards" id="m-cards" aria-label="Jogos"></section>
+    <footer class="menu-foot">Os jogos e o ranking ficam guardados só neste aparelho.</footer>
+  </main>
 
-  <section id="minas" hidden>
-    <div style="display:flex;flex-direction:column;gap:12px">
-      <div class="bar">
-        <select id="mdiff" aria-label="Dificuldade">
-          <option value="easy">Fácil · 9×9</option><option value="medium" selected>Médio · 16×16</option><option value="hard">Difícil · 30×16</option>
-        </select>
-        <span class="stat"><small>Minas</small><span id="mleft">0</span></span>
-        <span class="stat"><small>Tempo</small><span id="mtime">0</span></span>
-        <button class="btn" id="mnew">Novo jogo</button>
-      </div>
-      <div class="mscroll"><div class="mgrid" id="mgrid"></div></div>
-      <div class="msg" id="mmsg"></div>
-      <div class="tools">
-        <button class="btn" id="mflag">Modo bandeira: não</button>
-      </div>
-      <p class="legend">Clique abre, clique direito marca bandeira. Clicar num número já cercado de bandeiras abre os vizinhos. No telemóvel, usa o modo bandeira ou um toque longo.<br>Recorde: <span id="mbest">—</span></p>
+  <!-- Ecrã de jogo (estrutura comum a todos os jogos) -->
+  <main class="view game" id="v-game" hidden>
+    <header class="topbar">
+      <button class="icon-btn" id="g-back" aria-label="Voltar ao menu"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <h2 id="g-title">Jogo</h2>
+      <button class="icon-btn" id="g-help" aria-label="Como jogar"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.6"/><circle cx="12" cy="17" r=".6" fill="currentColor"/></svg></button>
+      <button class="icon-btn" id="g-rank" aria-label="Ranking deste jogo"><svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3a3 3 0 0 1-3 4M7 5H4a3 3 0 0 0 3 4"/></svg></button>
+    </header>
+    <div class="game-body">
+      <div class="stats" id="g-stats"></div>
+      <div class="board-area" id="g-board"></div>
+      <div class="controls" id="g-controls"></div>
     </div>
-  </section>
+  </main>
+
 </div>
 
-<script>
-const $=s=>document.getElementById(s);
-const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
-const fmt=s=>Math.floor(s/60)+":"+String(s%60).padStart(2,"0");
+<!-- Janela modal partilhada (ajuda, ranking, definições, resultados) -->
+<dialog id="modal" aria-labelledby="modal-title">
+  <div class="modal-card">
+    <header class="modal-head">
+      <h3 id="modal-title"></h3>
+      <button class="icon-btn" data-close aria-label="Fechar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </header>
+    <div class="modal-body" id="modal-body"></div>
+    <footer class="modal-foot" id="modal-foot"></footer>
+  </div>
+</dialog>
 
-/* ---------- Tabs ---------- */
-function showTab(t){
-  document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===t));
-  $("sudoku").hidden=t!=="sudoku"; $("minas").hidden=t!=="minas"; store.set("tab",t);
-}
-document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<canvas id="fx" aria-hidden="true"></canvas>
 
-/* ---------- Sudoku ---------- */
-const S={};
-const rowOf=i=>Math.floor(i/9), colOf=i=>i%9, boxOf=i=>Math.floor(rowOf(i)/3)*3+Math.floor(colOf(i)/3);
-const PEERS=[...Array(81)].map((_,i)=>{const p=[];for(let j=0;j<81;j++)if(j!==i&&(rowOf(j)===rowOf(i)||colOf(j)===colOf(i)||boxOf(j)===boxOf(i)))p.push(j);return p});
-const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
-function ok(g,i,v){for(const p of PEERS[i])if(g[p]===v)return false;return true}
-function fill(g){const i=g.indexOf(0);if(i<0)return true;for(const v of shuffle([1,2,3,4,5,6,7,8,9])){if(ok(g,i,v)){g[i]=v;if(fill(g))return true;g[i]=0}}return false}
-function count(g,lim){
-  let best=-1,bc=10;
-  for(let i=0;i<81;i++)if(!g[i]){let c=0;for(let v=1;v<=9;v++)if(ok(g,i,v))c++;if(c<bc){bc=c;best=i;if(c<2)break}}
-  if(best<0)return 1; if(bc===0)return 0;
-  let n=0;for(let v=1;v<=9&&n<lim;v++)if(ok(g,best,v)){g[best]=v;n+=count(g,lim-n);g[best]=0}
-  return n;
-}
-function generate(diff){
-  const sol=Array(81).fill(0);fill(sol);
-  const target={easy:40,medium:32,hard:26}[diff];
-  const g=sol.slice();let givens=81;
-  for(const i of shuffle([...Array(81).keys()])){
-    if(givens<=target)break;
-    const v=g[i];g[i]=0;
-    if(count(g.slice(),2)!==1)g[i]=v;else givens--;
-  }
-  return {puzzle:g,solution:sol};
-}
-function sNew(){
-  const diff=$("sdiff").value;
-  const {puzzle,solution}=generate(diff);
-  Object.assign(S,{diff,puzzle,solution,vals:puzzle.slice(),notes:Array(81).fill(0),sel:puzzle.indexOf(0),errors:0,time:0,done:false,hist:[]});
-  $("smsg").textContent="";$("smsg").className="msg";sSave();sRender();
-}
-function sSave(){const {hist,...rest}=S;store.set("sudoku",rest)}
-function sLoad(){const d=store.get("sudoku",null);if(d&&d.puzzle){Object.assign(S,d,{hist:[]});$("sdiff").value=S.diff;if(S.done)$("smsg").textContent="Resolvido em "+fmt(S.time)+". Bonito.";sRender()}else sNew()}
-const grid=$("sgrid");
-for(let i=0;i<81;i++){const c=document.createElement("div");c.className="sc";c.onclick=()=>{S.sel=i;sRender()};grid.appendChild(c)}
-const pad=$("spad");
-for(let v=1;v<=9;v++){const b=document.createElement("button");b.innerHTML=v+'<span class="left"></span>';b.onclick=()=>sInput(v);pad.appendChild(b)}
-function sRender(){
-  const sv=S.vals[S.sel];
-  [...grid.children].forEach((c,i)=>{
-    const v=S.vals[i];
-    let cls="sc";
-    if(S.puzzle[i])cls+=" given";
-    if(S.sel>=0&&PEERS[S.sel].includes(i))cls+=" peer";
-    if(sv&&v===sv&&i!==S.sel)cls+=" same";
-    if(v&&!S.puzzle[i]&&v!==S.solution[i])cls+=" err";
-    if(i===S.sel)cls+=" sel";
-    c.className=cls;
-    if(v)c.textContent=v;
-    else if(S.notes[i]){let h='<div class="notes">';for(let n=1;n<=9;n++)h+='<span>'+(S.notes[i]&(1<<n)?n:"")+'</span>';c.innerHTML=h+'</div>'}
-    else c.textContent="";
-  });
-  [...pad.children].forEach((b,k)=>{const v=k+1;let n=0;for(let i=0;i<81;i++)if(S.vals[i]===v&&S.vals[i]===S.solution[i])n++;b.disabled=n>=9||S.done;b.querySelector(".left").textContent=9-n||""});
-  $("serr").textContent=S.errors;$("stime").textContent=fmt(S.time||0);
-  $("snotes").textContent="Notas: "+(S.noteMode?"sim":"não");$("snotes").classList.toggle("on",!!S.noteMode);
-}
-function push(){S.hist.push({vals:S.vals.slice(),notes:S.notes.slice()});if(S.hist.length>200)S.hist.shift()}
-function sInput(v){
-  const i=S.sel;if(i<0||S.puzzle[i]||S.done)return;
-  push();
-  if(S.noteMode){if(!S.vals[i])S.notes[i]^=(1<<v)}
-  else{
-    if(S.vals[i]===v){S.vals[i]=0}
-    else{
-      S.vals[i]=v;S.notes[i]=0;
-      if(v!==S.solution[i])S.errors++;
-      else for(const p of PEERS[i])S.notes[p]&=~(1<<v);
-    }
-  }
-  sCheck();sSave();sRender();
-}
-function sCheck(){
-  if(S.vals.every((v,i)=>v===S.solution[i])){S.done=true;$("smsg").className="msg";$("smsg").textContent="Resolvido em "+fmt(S.time)+(S.errors?" com "+S.errors+" erro"+(S.errors>1?"s":""):" sem erros")+". Bonito.";}
-}
-$("snew").onclick=sNew;
-$("sdiff").onchange=sNew;
-$("snotes").onclick=()=>{S.noteMode=!S.noteMode;sRender()};
-$("serase").onclick=()=>{const i=S.sel;if(i<0||S.puzzle[i]||S.done)return;push();S.vals[i]=0;S.notes[i]=0;sSave();sRender()};
-$("sundo").onclick=()=>{const h=S.hist.pop();if(!h||S.done)return;S.vals=h.vals;S.notes=h.notes;sSave();sRender()};
-$("shint").onclick=()=>{
-  if(S.done)return;
-  let i=S.sel;
-  if(i<0||S.vals[i]===S.solution[i]){const cand=[];for(let k=0;k<81;k++)if(S.vals[k]!==S.solution[k])cand.push(k);if(!cand.length)return;i=cand[Math.random()*cand.length|0]}
-  push();S.vals[i]=S.solution[i];S.notes[i]=0;S.sel=i;S.time+=30;
-  $("smsg").className="msg";$("smsg").textContent="Pista: +30 s de penalização.";
-  sCheck();sSave();sRender();
-};
-document.addEventListener("keydown",e=>{
-  if($("sudoku").hidden||e.target.tagName==="SELECT")return;
-  const k=e.key;let i=S.sel<0?0:S.sel;
-  if(/^[1-9]$/.test(k)){sInput(+k);e.preventDefault()}
-  else if(k==="Backspace"||k==="Delete"||k==="0"){$("serase").click();e.preventDefault()}
-  else if(k==="n"||k==="N"){$("snotes").click()}
-  else if(k==="z"&&(e.ctrlKey||e.metaKey)){$("sundo").click();e.preventDefault()}
-  else if(k.startsWith("Arrow")){
-    const r=rowOf(i),c=colOf(i);
-    if(k==="ArrowUp")i=((r+8)%9)*9+c; if(k==="ArrowDown")i=((r+1)%9)*9+c;
-    if(k==="ArrowLeft")i=r*9+(c+8)%9; if(k==="ArrowRight")i=r*9+(c+1)%9;
-    S.sel=i;sRender();e.preventDefault();
-  }
-});
-
-/* ---------- Minas ---------- */
-const M={};
-const CFG={easy:{w:9,h:9,m:10},medium:{w:16,h:16,m:40},hard:{w:30,h:16,m:99}};
-const FLAG='<svg viewBox="0 0 20 20"><path d="M5 2v16" stroke="currentColor" stroke-width="2"/><path d="M6 3h10l-3 4 3 4H6z" fill="var(--flag)"/></svg>';
-const MINE='<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="5" fill="var(--ink)"/><path d="M10 2v16M2 10h16M4.5 4.5l11 11M15.5 4.5l-11 11" stroke="var(--ink)" stroke-width="1.6"/></svg>';
-function nb(i){const {w,h}=M,x=i%w,y=(i/w)|0,r=[];for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){if(!dx&&!dy)continue;const nx=x+dx,ny=y+dy;if(nx>=0&&ny>=0&&nx<w&&ny<h)r.push(ny*w+nx)}return r}
-function mNew(){
-  const d=$("mdiff").value,c=CFG[d];
-  Object.assign(M,{diff:d,w:c.w,h:c.h,m:c.m,mine:null,open:new Uint8Array(c.w*c.h),flag:new Uint8Array(c.w*c.h),state:"ready",time:0,boom:-1});
-  $("mmsg").textContent="";$("mmsg").className="msg";
-  const g=$("mgrid");g.innerHTML="";g.style.gridTemplateColumns=`repeat(${c.w},var(--cs))`;
-  const avail=Math.min(window.innerWidth,560)-36;
-  const cs=Math.max(24,Math.min(34,Math.floor(avail/c.w)-2));g.style.setProperty("--cs",cs+"px");
-  for(let i=0;i<c.w*c.h;i++){const el=document.createElement("div");el.className="mc";el.dataset.i=i;g.appendChild(el)}
-  const best=store.get("minasBest",{});$("mbest").textContent=best[d]?best[d]+" s no "+$("mdiff").selectedOptions[0].text.split(" ·")[0]:"—";
-  mRender();
-}
-function plant(safe){
-  const n=M.w*M.h,ban=new Set([safe,...nb(safe)]);M.mine=new Uint8Array(n);
-  const cells=shuffle([...Array(n).keys()].filter(i=>!ban.has(i)));
-  for(let k=0;k<M.m;k++)M.mine[cells[k]]=1;
-  M.num=new Uint8Array(n);for(let i=0;i<n;i++)M.num[i]=nb(i).reduce((s,j)=>s+M.mine[j],0);
-}
-function reveal(i){
-  if(M.state==="over"||M.state==="won"||M.flag[i]||M.open[i])return;
-  if(M.state==="ready"){plant(i);M.state="play";M.t0=Date.now()}
-  if(M.mine[i]){M.boom=i;lose();return}
-  const st=[i];
-  while(st.length){const c=st.pop();if(M.open[c]||M.flag[c])continue;M.open[c]=1;if(!M.num[c])for(const j of nb(c))if(!M.open[j])st.push(j)}
-  checkWin();
-}
-function chord(i){
-  if(!M.open[i]||!M.num[i])return;
-  const ns=nb(i);if(ns.filter(j=>M.flag[j]).length!==M.num[i])return;
-  for(const j of ns)if(!M.flag[j]&&!M.open[j]){reveal(j);if(M.state==="over")return}
-}
-function toggleFlag(i){if(M.open[i]||M.state==="over"||M.state==="won")return;M.flag[i]^=1;mRender()}
-function lose(){M.state="over";$("mmsg").className="msg bad";$("mmsg").textContent="Boom. Nova volta?";mRender()}
-function checkWin(){
-  const n=M.w*M.h;let open=0;for(let i=0;i<n;i++)open+=M.open[i];
-  if(open===n-M.m){
-    M.state="won";for(let i=0;i<n;i++)if(M.mine[i])M.flag[i]=1;
-    const t=M.time,best=store.get("minasBest",{});let rec="";
-    if(!best[M.diff]||t<best[M.diff]){best[M.diff]=t;store.set("minasBest",best);rec=" Novo recorde."}
-    $("mmsg").className="msg";$("mmsg").textContent="Limpo em "+t+" s."+rec;
-    $("mbest").textContent=best[M.diff]+" s";
-  }
-  mRender();
-}
-function mRender(){
-  const els=$("mgrid").children;let f=0;
-  for(let i=0;i<els.length;i++){
-    const el=els[i];f+=M.flag[i];
-    if(M.open[i]){el.className="mc o";const n=M.num[i];el.textContent=n||"";el.style.color=n?`var(--n${n})`:""}
-    else if(M.state==="over"&&M.mine&&M.mine[i]&&!M.flag[i]){el.className="mc o"+(i===M.boom?" boom":"");el.innerHTML=MINE}
-    else if(M.flag[i]){el.className="mc"+(M.state==="over"&&!M.mine[i]?" wrong":"");el.innerHTML=FLAG;el.style.color="var(--ink)"}
-    else{el.className="mc";el.textContent=""}
-  }
-  $("mleft").textContent=M.m-f;$("mtime").textContent=M.time;
-  $("mflag").textContent="Modo bandeira: "+(M.flagMode?"sim":"não");$("mflag").classList.toggle("on",!!M.flagMode);
-}
-const mg=$("mgrid");let lp=null,lpFired=false;
-mg.addEventListener("click",e=>{const el=e.target.closest(".mc");if(!el)return;if(lpFired){lpFired=false;return}const i=+el.dataset.i;
-  if(M.open[i])chord(i);else if(M.flagMode)toggleFlag(i);else reveal(i);mRender()});
-mg.addEventListener("contextmenu",e=>{e.preventDefault();const el=e.target.closest(".mc");if(el){const i=+el.dataset.i;if(M.open[i])chord(i);else toggleFlag(i);mRender()}});
-mg.addEventListener("touchstart",e=>{const el=e.target.closest(".mc");if(!el)return;lpFired=false;lp=setTimeout(()=>{lpFired=true;toggleFlag(+el.dataset.i);if(navigator.vibrate)try{navigator.vibrate(20)}catch(_){}},400)},{passive:true});
-["touchend","touchmove","touchcancel"].forEach(t=>mg.addEventListener(t,()=>clearTimeout(lp),{passive:true}));
-$("mnew").onclick=mNew;$("mdiff").onchange=mNew;
-$("mflag").onclick=()=>{M.flagMode=!M.flagMode;mRender()};
-
-/* ---------- Timers ---------- */
-setInterval(()=>{
-  if(!$("sudoku").hidden&&S.puzzle&&!S.done&&!document.hidden){S.time++;$("stime").textContent=fmt(S.time);if(S.time%5===0)sSave()}
-  if(M.state==="play"){M.time=Math.floor((Date.now()-M.t0)/1000);$("mtime").textContent=M.time}
-},1000);
-
-sLoad();mNew();showTab(store.get("tab","sudoku"));
-if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
-</script>
+<script src="js/core.js"></script>
+<script src="js/games/sudoku.js"></script>
+<script src="js/games/minas.js"></script>
+<script src="js/app.js"></script>
 </body>
 </html>

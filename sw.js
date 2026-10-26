@@ -1,9 +1,18 @@
-// Guarda a app para funcionar offline. Muda a versão quando alterares ficheiros.
-const VERSION = "sala-v1";
-const CORE = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png", "apple-touch-icon.png"];
+// Guarda a app para funcionar offline. Sobe a versão a cada publicação (sala-v2 → sala-v3).
+const VERSION = "sala-v2";
+const CORE = [
+  "./", "index.html", "manifest.webmanifest",
+  "css/base.css", "js/core.js", "js/app.js", "js/games/sudoku.js", "js/games/minas.js",
+  "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png"
+];
 
 self.addEventListener("install", e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(CORE)).then(() => self.skipWaiting()));
+  // "reload" evita apanhar cópias antigas da cache HTTP do browser.
+  e.waitUntil(
+    caches.open(VERSION)
+      .then(c => c.addAll(CORE.map(u => new Request(u, { cache: "reload" }))))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener("activate", e => {
@@ -17,25 +26,37 @@ self.addEventListener("activate", e => {
 self.addEventListener("fetch", e => {
   const req = e.request;
   if (req.method !== "GET") return;
-  // Página: tenta a rede primeiro (para receberes atualizações), cai na cópia guardada se estiveres offline.
+  const url = new URL(req.url);
+
+  // Página: rede primeiro (para receber atualizações), cópia guardada se estiver offline.
   if (req.mode === "navigate") {
     e.respondWith(
       fetch(req).then(res => {
-        const copy = res.clone();
-        caches.open(VERSION).then(c => c.put("index.html", copy));
+        if (res.ok) { const copy = res.clone(); caches.open(VERSION).then(c => c.put("index.html", copy)); }
         return res;
       }).catch(() => caches.match("index.html"))
     );
     return;
   }
-  // Resto (ícones, fontes): cópia guardada primeiro, rede depois.
-  e.respondWith(
-    caches.match(req).then(hit => hit || fetch(req).then(res => {
-      if (res.ok || res.type === "opaque") {
-        const copy = res.clone();
-        caches.open(VERSION).then(c => c.put(req, copy));
-      }
-      return res;
-    }))
-  );
+
+  // Ficheiros da app: responde com a cópia guardada e atualiza-a em segundo plano.
+  if (url.origin === location.origin) {
+    e.respondWith(
+      caches.open(VERSION).then(c => c.match(req, { ignoreSearch: true }).then(hit => {
+        const net = fetch(req).then(res => { if (res.ok) c.put(req, res.clone()); return res; }).catch(() => hit);
+        return hit || net;
+      }))
+    );
+    return;
+  }
+
+  // Fontes do Google: cópia guardada primeiro, rede depois.
+  if (url.hostname.endsWith("googleapis.com") || url.hostname.endsWith("gstatic.com")) {
+    e.respondWith(
+      caches.match(req).then(hit => hit || fetch(req).then(res => {
+        if (res.ok || res.type === "opaque") { const copy = res.clone(); caches.open(VERSION).then(c => c.put(req, copy)); }
+        return res;
+      }))
+    );
+  }
 });
