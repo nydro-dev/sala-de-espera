@@ -5,7 +5,7 @@ Jogos curtos numa app web instalável (PWA), feita para jogar nos intervalos. Fu
 ## Jogos
 - **Sudoku** com três dificuldades, sempre com solução única. Inclui notas a lápis, desfazer e pistas.
 - **Minas** com tabuleiros de 9×9, 16×16 e 30×16 (que roda para 16×30 no telemóvel ao alto). A primeira casa nunca rebenta.
-- Em preparação: 2048, Palavras, Solitário e Cobra.
+- Em preparação: 2048, Palavras, Solitário, Cobra, Blackjack e Roleta (estes dois com fichas virtuais, sem dinheiro real).
 
 Cada jogo tem uma janela "Como jogar", pontuação e um top 10 por dificuldade.
 
@@ -26,7 +26,7 @@ No Android, ou no Chrome e no Edge do computador, a opção chama-se "Instalar a
 Sem frameworks nem compilação: o GitHub Pages serve os ficheiros tal como estão.
 
 ## Atualizar
-Depois de alterar ficheiros, subir a versão em `sw.js` (`sala-v2` → `sala-v3`) para os aparelhos já instalados receberem a cópia nova. Se acrescentares ficheiros, junta-os também à lista `CORE`.
+Depois de alterar ficheiros, subir a versão em `sw.js` (`sala-v3` → `sala-v4`) para os aparelhos já instalados receberem a cópia nova. Se acrescentares ficheiros, junta-os também à lista `CORE`.
 
 ## Privacidade
 A app não tem contas, publicidade nem estatísticas, e não envia dados para lado nenhum. Os jogos a meio, as definições e o ranking ficam guardados apenas no armazenamento local do teu browser. O tipo de letra é carregado do Google Fonts na primeira utilização.
