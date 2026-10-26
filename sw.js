@@ -1,8 +1,9 @@
-// Guarda a app para funcionar offline. Sobe a versão a cada publicação (sala-v3 → sala-v4).
-const VERSION = "sala-v3";
+// Guarda a app para funcionar offline. Sobe a versão a cada publicação (sala-v4 → sala-v5).
+const VERSION = "sala-v4";
 const CORE = [
   "./", "index.html", "manifest.webmanifest",
   "css/base.css", "js/core.js", "js/app.js", "js/games/sudoku.js", "js/games/minas.js",
+  "js/games/casino.js", "js/games/blackjack.js", "js/games/roleta.js",
   "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png"
 ];
 

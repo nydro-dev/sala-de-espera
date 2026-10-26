@@ -231,11 +231,11 @@
     /* o: { game, diff, diffLabel, title, score, time, breakdown:[[rótulo, valor]], extra, onNew } */
     const res = ranking.add(o.game, o.diff, { name: settings.name || "Eu", score: o.score, time: o.time, extra: o.extra || null });
     const box = el("div", { class: "result" });
-    let html = '<div class="big">' + fmtNum(o.score) + '<small>pts</small></div>';
+    let html = '<div class="big">' + fmtNum(o.score) + '<small>' + esc(o.unit || "pts") + '</small></div>';
     if (res.pos === 1) html += '<div class="badge">Novo recorde · ' + esc(o.diffLabel) + '</div>';
     else if (res.pos) html += '<div class="badge">' + res.pos + '.º lugar · ' + esc(o.diffLabel) + '</div>';
     html += '<div class="breakdown">' + (o.breakdown || []).map(r => '<div><span>' + esc(r[0]) + '</span><span>' + esc(r[1]) + '</span></div>').join("") +
-      '<div class="total"><span>Total</span><span>' + fmtNum(o.score) + ' pts</span></div></div>';
+      '<div class="total"><span>Total</span><span>' + fmtNum(o.score) + ' ' + esc(o.unit || "pts") + '</span></div></div>';
     box.innerHTML = html;
     let nameInput = null;
     if (res.pos && !settings.name) {
@@ -254,7 +254,7 @@
       onClose: saveName,
       actions: [
         { label: "Ver ranking", onClick: () => { saveName(); nameInput = null; setTimeout(() => showRanking(o.game, o.diff, res.id), 0); } },
-        { label: "Novo jogo", primary: true, onClick: () => { saveName(); nameInput = null; o.onNew && o.onNew(); } }
+        { label: o.newLabel || "Novo jogo", primary: true, onClick: () => { saveName(); nameInput = null; o.onNew && o.onNew(); } }
       ]
     });
     if (res.pos === 1) { sound.win(); vibrate([30, 60, 30, 60, 80]); } else { sound.win(); vibrate([30, 60, 60]); }
@@ -264,7 +264,10 @@
 
   /* ---------- Janela de ranking ---------- */
   function showRanking(gameId, diff, highlightId) {
-    const ready = games.filter(g => g.ready);
+    /* Jogos que partilham ranking (o casino) aparecem uma só vez, com o nome do grupo. */
+    const ready = games.filter(x => (x.ready && !x.rankAs) || x.rankable);
+    const asked = gameById(gameId);
+    if (asked && asked.rankAs) gameId = asked.rankAs;
     let g = gameById(gameId) || ready[0];
     let d = diff || (g && g.lastDiff && g.lastDiff()) || g.diffs[0].id;
     const box = el("div");
@@ -273,13 +276,13 @@
     const draw = () => {
       filters.innerHTML = "";
       if (!gameId) filters.appendChild(ui.seg(ready.map(x => ({ id: x.id, label: x.name })), g.id, id => { g = gameById(id); if (!g.diffs.some(x => x.id === d)) d = g.diffs[0].id; draw(); }, "Jogo"));
-      filters.appendChild(ui.seg(g.diffs, d, id => { d = id; drawTable(); }, "Dificuldade"));
+      if (g.diffs.length > 1) filters.appendChild(ui.seg(g.diffs, d, id => { d = id; drawTable(); }, "Dificuldade"));
       drawTable();
     };
     const drawTable = () => {
       const l = ranking.list(g.id, d);
-      if (!l.length) { table.innerHTML = '<p class="empty">Ainda não há pontuações nesta dificuldade.<br>A primeira é tua.</p>'; return; }
-      table.innerHTML = '<table class="rank"><thead><tr><th>#</th><th>Nome</th><th>Tempo</th><th class="pts">Pontos</th></tr></thead><tbody>' +
+      if (!l.length) { table.innerHTML = '<p class="empty">' + (g.emptyText || "Ainda não há pontuações nesta dificuldade.<br>A primeira é tua.") + "</p>"; return; }
+      table.innerHTML = '<table class="rank"><thead><tr><th>#</th><th>Nome</th><th>Tempo</th><th class="pts">' + esc(g.unitLabel || "Pontos") + '</th></tr></thead><tbody>' +
         l.map((e, i) => '<tr' + (e.id === highlightId ? ' class="me"' : "") + '><td class="pos">' + (i + 1) + '</td><td>' + esc(e.name) + '</td><td>' + fmtTime(e.time) + '</td><td class="pts">' + fmtNum(e.score) + '</td></tr>').join("") +
         '</tbody></table>';
     };

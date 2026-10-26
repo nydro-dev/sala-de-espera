@@ -42,6 +42,8 @@
 /* ---------- Base ---------- */
 *,*::before,*::after{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%;background:var(--bg)}
+/* Nada pode alargar a página (as cartas entram de fora do ecrã): sem isto, o telemóvel afasta o zoom. */
+html,body{overflow-x:hidden;overflow-x:clip}
 body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.45 var(--font);-webkit-tap-highlight-color:transparent;min-height:100dvh}
 [hidden]{display:none!important}
 button,input,select{font:inherit;color:inherit}
@@ -283,3 +285,72 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 @keyframes open-in{from{transform:scale(.7);opacity:.2}}
 @keyframes boom{0%{transform:scale(1);box-shadow:0 0 0 0 var(--bad)}40%{transform:scale(1.35)}100%{transform:scale(1);box-shadow:0 0 0 18px transparent}}
 .minas-mode{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+
+
+/* ===================== Casino (comum) ===================== */
+:root{--felt:#0B6E4F;--felt-ink:#F4FFF9;--felt-line:rgba(255,255,255,.28);--red-suit:#C0262D;--card:#FFFFFF;--card-ink:#1A181D}
+.chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.chip-btn{position:relative;width:52px;height:52px;border-radius:50%;border:0;padding:0;display:grid;place-items:center;font-weight:900;font-size:.85rem;color:var(--on-accent);
+  background:repeating-conic-gradient(var(--cc) 0 22.5deg,#fff 22.5deg 45deg);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+.chip-btn span{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:var(--cc);border:2px dashed rgba(255,255,255,.7)}
+.chip-btn.c10{--cc:#B8B8B8}.chip-btn.c25{--cc:#09B5FF}.chip-btn.c100{--cc:#FFC301}.chip-btn.c500{--cc:#1A181D}.chip-btn.c500 span{color:#fff}
+.chip-btn[aria-pressed="true"]{outline:3px solid var(--blue);outline-offset:3px}
+@media (prefers-reduced-motion:no-preference){.chip-btn{transition:transform .12s}.chip-btn:active{transform:scale(.92)}.chip-btn[aria-pressed="true"]{transform:translateY(-3px)}}
+.casino-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.casino-actions .btn{min-height:48px}
+.table{width:100%;background:radial-gradient(ellipse at 50% 0%,color-mix(in srgb,var(--felt) 85%,#fff) 0%,var(--felt) 60%);color:var(--felt-ink);border-radius:18px;padding:16px 12px;display:flex;flex-direction:column;gap:14px;box-shadow:inset 0 0 0 6px color-mix(in srgb,var(--felt) 70%,#000),var(--shadow)}
+.table .lbl{font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.85;display:flex;gap:8px;align-items:center;justify-content:center}
+.table .val{display:inline-block;min-width:2.2em;padding:1px 8px;border-radius:999px;background:rgba(0,0,0,.28);font-size:.85rem;letter-spacing:0;text-transform:none}
+.table .note{min-height:1.4em;text-align:center;font-weight:700;font-size:1rem}
+
+/* ===================== Blackjack ===================== */
+.bj-zone{display:flex;flex-direction:column;align-items:center;gap:8px;min-height:calc(var(--cw) * 1.4 + 26px)}
+.bj-hands{display:flex;gap:18px;justify-content:center;flex-wrap:wrap}
+.bj-hands.two{gap:8px;flex-wrap:nowrap}
+.bj-hands.two .bj-cards{--cw:clamp(44px,11.5vw,66px)}
+.bj-hand{display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px;border-radius:12px;border:2px solid transparent}
+.bj-hand.active{border-color:var(--yellow)}
+.bj-hand .res{font-size:.8rem;font-weight:900;padding:2px 10px;border-radius:999px;background:rgba(0,0,0,.3)}
+.bj-hand .res.win{background:var(--yellow);color:var(--on-accent)}
+.bj-cards{display:flex;--cw:clamp(52px,14.5vw,74px)}
+.bj-zone{--cw:clamp(52px,14.5vw,74px)}
+.pcard{position:relative;width:var(--cw);aspect-ratio:5/7;max-width:100%;border-radius:8px;background:var(--card);color:var(--card-ink);box-shadow:0 2px 6px rgba(0,0,0,.35);flex:none;font-weight:700;transform-style:preserve-3d}
+.pcard+.pcard{margin-left:calc(var(--cw) * -.42)}
+.pcard .r{position:absolute;top:4px;left:6px;font-size:calc(var(--cw) * .27);line-height:1}
+.pcard .s{position:absolute;top:calc(var(--cw) * .3);left:6px;font-size:calc(var(--cw) * .2);line-height:1}
+.pcard .big{position:absolute;right:6px;bottom:4px;font-size:calc(var(--cw) * .48);line-height:1}
+.pcard.red{color:var(--red-suit)}
+.pcard.back{background:repeating-linear-gradient(45deg,#09B5FF 0 6px,#0790CC 6px 12px);border:4px solid #fff}
+.pcard.back *{display:none}
+@media (prefers-reduced-motion:no-preference){
+  .pcard.deal{animation:deal .38s cubic-bezier(.2,.8,.3,1) both;animation-delay:var(--d,0ms)}
+  .pcard.flip{animation:flip .45s ease both}
+}
+@keyframes deal{from{transform:translate(40vw,-40vh) rotate(-25deg);opacity:0}}
+@keyframes flip{0%{transform:rotateY(180deg) scale(1.05)}100%{transform:rotateY(0)}}
+
+/* ===================== Roleta ===================== */
+.rl-layout{display:flex;flex-direction:column;align-items:center;gap:14px;width:100%}
+.rl-left{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%}
+@media (min-width:900px){.rl-layout{flex-direction:row;align-items:flex-start;justify-content:center;gap:24px}.rl-left{width:auto;flex:1;max-width:320px;position:sticky;top:12px}.rl-board{flex:1}}
+.rl-wheel{position:relative;width:min(300px,78vw);aspect-ratio:1;max-width:100%}
+.rl-wheel canvas{width:100%;height:100%;display:block}
+.rl-wheel .ptr{position:absolute;left:50%;top:-4px;transform:translateX(-50%);width:0;height:0;border-left:11px solid transparent;border-right:11px solid transparent;border-top:20px solid var(--yellow);filter:drop-shadow(0 2px 2px rgba(0,0,0,.4))}
+.rl-result{display:flex;align-items:center;justify-content:center;gap:10px;font-weight:700}
+.rl-ball{display:inline-grid;place-items:center;min-width:44px;height:44px;padding:0 8px;border-radius:50%;font-size:1.25rem;font-weight:900;color:#fff;background:var(--line-strong)}
+.rl-ball.red{background:#C0262D}.rl-ball.black{background:#1A181D;box-shadow:inset 0 0 0 2px #555}.rl-ball.green{background:#0B6E4F}
+.rl-hist{display:flex;gap:4px;flex-wrap:wrap;justify-content:center}
+.rl-hist span{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;font-size:.72rem;font-weight:700;color:#fff}
+.rl-hist .red{background:#C0262D}.rl-hist .black{background:#1A181D}.rl-hist .green{background:#0B6E4F}
+.rl-board{display:grid;grid-template-columns:1fr 1fr repeat(3,1.25fr);gap:3px;width:100%;max-width:420px;background:var(--felt);padding:6px;border-radius:12px;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+.rl-cell{position:relative;display:grid;place-items:center;min-height:34px;border:1px solid var(--felt-line);border-radius:5px;background:transparent;color:var(--felt-ink);font-weight:700;font-size:.95rem;padding:0;font-variant-numeric:tabular-nums}
+.rl-cell.n.red{background:#C0262D;border-color:#C0262D}.rl-cell.n.black{background:#1A181D;border-color:#1A181D}
+.rl-cell.zero{background:#0B6E4F;border-color:var(--felt-line)}
+.rl-cell.out{font-size:.72rem;letter-spacing:.04em;padding:4px 0}
+.rl-cell .vt{writing-mode:vertical-rl;transform:rotate(180deg)}
+.rl-cell.small{font-size:.8rem}
+.rl-cell:hover{filter:brightness(1.15)}
+.rl-cell.hit{box-shadow:0 0 0 3px var(--yellow) inset}
+.rl-cell .stake{position:absolute;inset:0;margin:auto;width:max-content;min-width:26px;height:26px;padding:0 4px;border-radius:13px;display:grid;place-items:center;font-size:.68rem;font-weight:900;background:var(--yellow);color:var(--on-accent);border:2px dashed #fff;z-index:1;pointer-events:none}
+@media (prefers-reduced-motion:no-preference){.rl-cell .stake{animation:pop .2s ease}}
+@media (min-width:900px){.rl-cell{min-height:38px}}
