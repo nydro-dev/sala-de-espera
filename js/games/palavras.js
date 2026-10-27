@@ -108,7 +108,7 @@
       breakdown: [["Tentativas", g.guesses.length + " de " + TRIES], ["Pontos pela tentativa", fmtNum(base)]].concat(g.mode === "dia" ? [["Sequência de " + P.streak + " dia" + (P.streak > 1 ? "s" : ""), "+" + fmtNum(g.points - base)]] : []),
       share: shareInfo(g),
       newLabel: g.mode === "dia" ? "Jogo livre" : "Outra palavra",
-      onNew: () => { if (g.mode === "dia") setMode("livre"); else newFree(); }
+      onNew: () => { if (g.mode === "dia") Sala.go("palavras"); else newFree(); }
     });
   }
   function newFree() { P.games.livre = freshGame("livre"); typing = ""; save(); if (P.mode !== "livre") setMode("livre"); else { buildGrid(); renderAll(); } }
@@ -138,12 +138,16 @@
   }
 
   /* ---------- Ecrã ---------- */
-  function mount(c) {
+  /* A palavra do dia abre-se pelo desafio do dia (#/palavras/dia); o cartão do menu abre o jogo livre. */
+  function mount(c, opts) {
     if (!P) load(); else if (P.games.dia.date !== today()) load();
+    P.mode = opts && opts.daily ? "dia" : "livre"; save();
     els = c; typing = ""; busy = false;
     c.stats.innerHTML = ui.stat("Sequência", "w-streak", "hl") + ui.stat("Melhor", "w-bstreak") + ui.stat("Vitórias", "w-wins") + ui.stat("Recorde", "w-best");
     c.board.append(el("div", { class: "w-grid", id: "w-grid", "aria-label": "Tentativas" }), el("div", { class: "msg", id: "w-msg", role: "status" }));
-    const seg = ui.seg(DIFFS, P.mode, m => setMode(m), "Modo"); seg.id = "w-mode";
+    const seg = P.mode === "dia"
+      ? el("div", { class: "mode-tag" }, ui.ICON.cal + "Palavra do dia nº " + P.games.dia.n + " · " + Sala.daily.label(P.games.dia.date))
+      : el("div", { class: "mode-tag" }, "Jogo livre · palavras ao acaso");
     const kb = el("div", { class: "w-kb", id: "w-kb", "aria-label": "Teclado" });
     ["qwertyuiop", "asdfghjkl", "<zxcvbnm>"].forEach(rowStr => {
       const row = el("div", { class: "w-kbrow" });
@@ -160,7 +164,9 @@
     const actions = el("div", { class: "casino-actions", id: "w-actions" });
     const bShare = el("button", { class: "btn", type: "button", id: "w-share" }, ui.ICON.share + "Partilhar"); bShare.onclick = share;
     const bNew = el("button", { class: "btn", type: "button", id: "w-new" }, ui.ICON.plus + "Outra palavra"); bNew.onclick = () => { const g = P.games.livre; if (!g.done && g.guesses.length) giveUp(); newFree(); };
-    actions.append(bShare, bNew);
+    const bOther = el("button", { class: "btn", type: "button" }, P.mode === "dia" ? ui.ICON.plus + "Jogo livre" : ui.ICON.cal + "Palavra do dia");
+    bOther.onclick = () => Sala.go(P.mode === "dia" ? "palavras" : "palavras/dia");
+    actions.append(bShare, bNew, bOther);
     const tip = el("p", { class: "hint", id: "w-tip" });
     c.controls.append(seg, kb, actions, tip);
     buildGrid(); renderAll();
@@ -250,22 +256,31 @@
     return "<h4>Objetivo</h4><p>Descobrir uma palavra portuguesa de cinco letras em seis tentativas. Cada tentativa tem de ser uma palavra que exista.</p>" +
       "<h4>Cores</h4><ul><li><b>Azul:</b> a letra está na palavra e no sítio certo.</li><li><b>Amarelo:</b> a letra está na palavra, mas noutro sítio.</li><li><b>Cinzento:</b> a letra não está na palavra (ou já apareceu todas as vezes que aparece).</li></ul>" +
       "<h4>Acentos</h4><p>Não precisas de os escrever: \"acao\" conta como \"ação\" e \"c\" serve para \"ç\". As palavras seguem o Acordo Ortográfico de 1990 e não têm k, w nem y.</p>" +
-      "<h4>Modos</h4><ul><li><b>Palavra do dia:</b> a mesma palavra para toda a gente, uma por dia, com sequência de dias seguidos.</li><li><b>Jogo livre:</b> palavras ao acaso, quantas quiseres.</li></ul>" +
-      "<h4>Controlos</h4><ul><li>Teclado do ecrã ou do computador: letras, <kbd>Enter</kbd> para enviar, <kbd>⌫</kbd> para apagar.</li><li><b>Copiar resultado</b> copia os quadrados coloridos, sem revelar a palavra.</li></ul>" +
+      "<h4>Modos</h4><ul><li><b>Palavra do dia:</b> a mesma palavra para toda a gente, uma por dia, com sequência de dias seguidos. Está no desafio do dia, no topo do menu.</li><li><b>Jogo livre:</b> palavras ao acaso, quantas quiseres. É o que abre o cartão Palavras.</li></ul>" +
+      "<h4>Controlos</h4><ul><li>Teclado do ecrã ou do computador: letras, <kbd>Enter</kbd> para enviar, <kbd>⌫</kbd> para apagar.</li><li><b>Partilhar</b> envia uma imagem e os quadrados coloridos, sem revelar a palavra.</li></ul>" +
       "<h4>Pontuação</h4><ul><li>1000, 800, 600, 400, 250 ou 150 pontos se acertares à 1.ª, 2.ª, 3.ª, 4.ª, 5.ª ou 6.ª tentativa.</li><li>Na palavra do dia, cada dia seguido dá +10 %, até ao dobro.</li><li>Cada modo tem o seu top 10.</li></ul>" +
       "<h4>Créditos</h4><p>Palavras do dicionário pt_PT do Projecto Natura (Universidade do Minho, MPL 1.1), escolhidas com as frequências de legendas em português europeu do OpenSubtitles compiladas por Hermit Dave (CC BY-SA 4.0).</p>";
   }
 
   Sala.registerGame({
     id: "palavras", name: "Palavras", ready: true, diffs: DIFFS,
-    desc: "Descobrir a palavra do dia em seis tentativas.",
+    desc: "Descobrir palavras de cinco letras em seis tentativas.",
     art: '<svg viewBox="0 0 36 36"><rect x="2" y="11" width="9.5" height="14" rx="2" fill="var(--blue)"/><rect x="13.25" y="11" width="9.5" height="14" rx="2" fill="var(--yellow)"/><rect x="24.5" y="11" width="9.5" height="14" rx="2" fill="var(--cover)"/><text x="6.75" y="21.5" font-size="8" font-weight="900" text-anchor="middle" fill="var(--on-accent)" font-family="Roboto,sans-serif">P</text><text x="18" y="21.5" font-size="8" font-weight="900" text-anchor="middle" fill="var(--on-accent)" font-family="Roboto,sans-serif">T</text></svg>',
-    lastDiff: () => (P && P.mode) || "dia",
+    lastDiff: () => (P && P.mode) || "livre",
+    daily: true, dailyLost: "Falhou", dailyTitle: "Palavra do dia",
+    dailyPlaying() { if (!P || P.games.dia.date !== today()) load(); const d = P.games.dia; return !d.done && d.guesses.length > 0; },
+    /* O resultado do dia vem do próprio jogo (as Palavras já tinham a palavra do dia antes do desafio). */
+    dailyResult() {
+      if (!P || P.games.dia.date !== today()) load();
+      const d = P.games.dia; if (!d.done) return null;
+      return { date: d.date, won: d.won, score: d.points || 0, time: d.time, extra: { tries: d.guesses.length } };
+    },
+    dailyText: r => (r.won ? r.extra.tries : "X") + "/" + TRIES + (r.won ? " · " + fmtNum(r.score) + " pts" : ""),
     meta() {
       if (!P || P.games.dia.date !== today()) load();
-      const d = P.games.dia, out = [];
-      out.push(d.done ? { text: "Palavra do dia feita" } : { text: "Palavra do dia por fazer", cls: "yellow" });
-      if (P.streak) out.push({ text: "Sequência " + P.streak, cls: "blue" });
+      const l = P.games.livre, out = [];
+      if (!l.done && l.guesses.length) out.push({ text: "Jogo livre a meio", cls: "blue" });
+      const b = ranking.best("palavras", "livre"); if (b) out.push({ text: "Recorde " + fmtNum(b.score) + " pts" });
       return out;
     },
     help, mount, unmount, tick, onKey, save

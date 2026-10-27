@@ -215,7 +215,7 @@
   const today = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
   const daily = {
     today,
-    GAMES: ["sudoku", "minas", "soli"],
+    GAMES: ["palavras", "sudoku", "minas", "soli"],
     label: ds => ds.split("-").reverse().join("/"),
     long(ds) { const [y, m, d] = (ds || today()).split("-").map(Number); return new Date(y, m - 1, d).toLocaleDateString("pt-PT", { weekday: "long", day: "numeric", month: "long" }); },
     rng: (game, ds) => rng("sala-de-espera:" + game + ":" + (ds || today())),
@@ -424,7 +424,7 @@
     let g = gameById(gameId) || ready[0];
     let mode = view === "stats" ? "stats" : "rank";
     const DIA = { id: "dia", label: "Do dia" }, ALL = { id: "*", label: "Todas" };
-    const diffsOf = () => (mode === "stats" && g.diffs.length > 1 ? [ALL] : []).concat(g.diffs, g.daily ? [DIA] : []);
+    const diffsOf = () => (mode === "stats" && g.diffs.length > 1 ? [ALL] : []).concat(g.diffs, g.daily && !g.diffs.some(x => x.id === "dia") ? [DIA] : []);
     /* Jogos com modos (a Cobra: com ou sem paredes) guardam o ranking em "dificuldade + sufixo do modo". */
     const split = k => {
       if (!g.rankModes || k === "dia" || k === "*") return [k, g.rankModes ? g.rankModes[0].id : null];

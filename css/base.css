@@ -470,7 +470,8 @@ html.cb-lock,html.cb-lock body{overscroll-behavior:none;touch-action:none;overfl
 .daily-head p{margin:1px 0 0;color:var(--muted);font-size:.85rem}
 .daily-head>div{flex:1;min-width:0}
 .daily-head .btn{min-height:38px;padding:0 12px}
-.daily-games{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.daily-games{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+@media (min-width:600px){.daily-games{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .dg{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 6px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--surface);color:var(--ink);text-align:center;min-width:0}
 .dg:hover{border-color:var(--blue)}
 .dg .art{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;background:var(--blue-soft)}

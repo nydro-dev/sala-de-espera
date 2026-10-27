@@ -21,10 +21,10 @@
   const SOON = []; /* jogos por fazer: { name, desc, art } */
 
   /* ---------- Desafio do dia (topo do menu) ---------- */
-  const SHORT = { sudoku: "🔢", minas: "💣", soli: "🃏" };
+  const SHORT = { palavras: "🔤", sudoku: "🔢", minas: "💣", soli: "🃏" };
   function dailyState(g) {
-    const r = daily.result(g.id);
-    if (r) return { done: true, r, text: r.won ? fmtNum(r.score) + " pts" : (g.dailyLost || "Sem vitória") + (r.score ? " · " + fmtNum(r.score) : ""), cls: r.won ? "good" : "" };
+    const r = g.dailyResult ? g.dailyResult() : daily.result(g.id);
+    if (r) return { done: true, r, text: g.dailyText && r.won ? g.dailyText(r) : r.won ? fmtNum(r.score) + " pts" : (g.dailyLost || "Sem vitória") + (r.score ? " · " + fmtNum(r.score) : ""), cls: r.won ? "good" : "" };
     if (g.dailyPlaying && g.dailyPlaying()) return { done: false, text: "A meio", cls: "blue" };
     return { done: false, text: "Por jogar", cls: "yellow" };
   }
@@ -55,7 +55,7 @@
     let total = 0;
     const lines = list.map((g, k) => {
       const s = states[k]; if (s.done) total += s.r.score || 0;
-      return g.name + ": " + (s.done ? (s.r.won ? fmtNum(s.r.score) + " pts em " + fmtTime(s.r.time) : (g.dailyLost || "sem vitória") + (s.r.score ? " · " + fmtNum(s.r.score) + " pts" : "")) : "por jogar");
+      return g.name + ": " + (s.done ? (g.dailyText ? g.dailyText(s.r) : s.r.won ? fmtNum(s.r.score) + " pts em " + fmtTime(s.r.time) : (g.dailyLost || "sem vitória") + (s.r.score ? " · " + fmtNum(s.r.score) + " pts" : "")) : "por jogar");
     });
     const text = "Sala de Espera · Desafio do dia " + daily.label(ds) + "\n" + list.map((g, k) => SHORT[g.id] + " " + lines[k]).join("\n") + "\nTotal: " + fmtNum(total) + " pts\n" + Sala.SITE;
     Sala.share({ title: "Desafio do dia", sub: daily.label(ds), big: fmtNum(total), unit: "pts", lines, text });
@@ -93,7 +93,7 @@
     Object.values(body).forEach(n => n.innerHTML = "");
     if (g && g.ready) {
       $("v-menu").hidden = true; $("v-game").hidden = false;
-      const t = isDaily ? g.name + " do dia" : g.name;
+      const t = isDaily ? (g.dailyTitle || g.name + " do dia") : g.name;
       $("g-title").textContent = t; document.title = t + " · Sala de Espera";
       active = g; g.mount(body, { daily: !!isDaily });
       if (!store.get("seenHelp:" + g.id, false)) { store.set("seenHelp:" + g.id, true); setTimeout(() => Sala.showHelp(g.id), 250); }
