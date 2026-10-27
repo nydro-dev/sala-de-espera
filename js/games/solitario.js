@@ -416,6 +416,15 @@
     lastDiff, emptyText: "Ainda não há jogos ganhos.<br>O primeiro é teu.",
     daily: true, dailyLost: "Terminado",
     duel: true, duelTime: true,
+    /* Código curto: semente, pontos, tempo, cartas nas fundações e ganhou. */
+    code: {
+      pre: "SOL", bits: [16, 13, 14, 6, 1],
+      pack(x) {
+        const sd = Sala.duelCode.seedNum(x.b); if (x.d !== "d3" || sd < 0) return null;
+        return [sd, Math.round(x.s) || 0, Math.min(16383, Math.round(x.t) || 0), Math.round(x.p) || 0, x.w ? 1 : 0];
+      },
+      unpack: v => v[3] > 52 || (v[4] && v[3] !== 52) ? null : { d: "d3", b: Sala.duelCode.seedStr(v[0]), s: v[1], t: v[2], p: v[3], w: v[4] }
+    },
     duelOk: D => D.d === "d3" && /^[a-z0-9]{4,20}$/.test(D.b),
     duelText: r => r.w ? fmtTime(r.t) : r.p + " de 52 cartas",
     dailyPlaying() { const d = store.get("soli:dia", null); return !!(d && d.daily === daily.today() && !d.over && d.moves && !d.practice); },

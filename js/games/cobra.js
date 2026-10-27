@@ -364,6 +364,19 @@
     art: '<svg viewBox="0 0 36 36"><path d="M6 28h12V18h12V8" fill="none" stroke="var(--blue)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="30" cy="8" r="3.5" fill="var(--ink)"/><circle cx="9" cy="10" r="3" fill="var(--yellow)"/></svg>',
     lastDiff,
     duel: true,
+    /* Código curto: velocidade e paredes, semente, pontos e tamanho. O tempo não conta na Cobra. */
+    code: {
+      pre: "COB", bits: [3, 16, 16, 10],
+      pack(x) {
+        const k = parseKey(x.d), si = SPEEDS.findIndex(s => s.id === k.speed), mi = MODES.findIndex(m => m.id === k.mode), sd = Sala.duelCode.seedNum(x.b);
+        if (si < 0 || mi < 0 || sd < 0) return null;
+        return [si * MODES.length + mi, sd, Math.round(x.s) || 0, Math.round(x.p) || 0];
+      },
+      unpack(v) {
+        const sp = SPEEDS[Math.floor(v[0] / MODES.length)], mo = MODES[v[0] % MODES.length];
+        return sp ? { d: keyOf(sp.id, mo.id), b: Sala.duelCode.seedStr(v[1]), s: v[2], p: v[3], t: 0, w: 0 } : null;
+      }
+    },
     duelOk: D => { const k = parseKey(D.d); return SPEEDS.some(x => x.id === k.speed) && /^[a-z0-9]{4,20}$/.test(D.b); },
     duelLabel: d => { const k = parseKey(d); return labelOf(k.speed, k.mode); },
     duelText: r => "Tamanho " + fmtNum(r.p),

@@ -24,7 +24,9 @@ Cada jogo tem uma janela "Como jogar", pontuação e um top 10 (por dificuldade,
 ## Duelos por link
 No fim de um jogo de Sudoku, Minas, Palavras (jogo livre), Solitário, Dobra ou Cobra, o botão **Desafiar** cria um link com o mesmo tabuleiro e o teu resultado. Quem o abrir joga esse tabuleiro e vê no fim "Tu vs" quem desafiou; com **Devolver desafio**, manda-te o resultado dele, e ao abrires esse link vês logo a comparação, sem jogar outra vez. As vitórias, derrotas e empates contra cada rival ficam no separador **Rivais** da janela do ranking. Os duelos não contam para o top 10 nem para as estatísticas.
 
-Tudo vai no próprio link (depois do `#`), por isso não há servidor nem contas. Em contrapartida, quem perceber o formato consegue falsificar um resultado: é um jogo entre amigos, não uma competição. No iPhone, os links abrem no Safari, que guarda os dados à parte da app instalada.
+A mensagem do duelo leva o link e um **código curto** (por exemplo, `SUD-3HYF-VT75-BYN1-Rui`): três letras do jogo, os dados do duelo e o nome de quem desafia. Na app instalada, o botão **Duelo recebido**, no menu, aceita o código escrito à mão ou colado (sem distinguir maiúsculas, com ou sem hífenes) ou o link inteiro. Isto existe porque no iPhone os links abrem sempre no Safari, que guarda os dados à parte da app instalada; quando um link de duelo abre no browser, a app pergunta primeiro se a tens instalada e dá o código para levar para lá. O código usa o alfabeto Crockford base32 (sem I, L, O e U) e termina em dois caracteres de verificação, que apanham qualquer erro num só carácter; um código mal escrito é recusado em vez de abrir outro tabuleiro.
+
+Tudo vai no próprio link ou código (no link, depois do `#`), por isso não há servidor nem contas. Em contrapartida, quem perceber o formato consegue falsificar um resultado: é um jogo entre amigos, não uma competição.
 
 ## Instalar no iPhone
 1. Abrir o endereço do GitHub Pages no Safari.
@@ -49,7 +51,7 @@ Depois de alterar ficheiros, subir a versão em `sw.js` (`sala-v13` → `sala-v1
 Quem já tem a app instalada recebe a versão nova sozinho: ao abrir a app (ou de hora a hora), ela procura atualizações e mostra uma barra com o botão "Atualizar". Também dá para procurar à mão nas definições.
 
 ## Privacidade
-A app não tem contas, publicidade nem contadores de visitas, e não envia dados para lado nenhum. Os jogos a meio, as definições, o ranking e as estatísticas de jogo ficam guardados apenas no armazenamento local do teu browser. Partilhar um resultado ou um duelo só envia o que tu escolheres, pela folha de partilha do aparelho: no caso do duelo, o nome que escreveste, a pontuação, o tempo e o tabuleiro. O tipo de letra vem do próprio site, sem pedidos a serviços de terceiros.
+A app não tem contas, publicidade nem contadores de visitas, e não envia dados para lado nenhum. Os jogos a meio, as definições, o ranking e as estatísticas de jogo ficam guardados apenas no armazenamento local do teu browser. Partilhar um resultado ou um duelo só envia o que tu escolheres, pela folha de partilha do aparelho: no caso do duelo, o nome que escreveste, a pontuação, o tempo e o tabuleiro (no link e no código). O tipo de letra vem do próprio site, sem pedidos a serviços de terceiros.
 
 ## Créditos e licenças das listas de palavras
 - `js/data/validas.js` (palavras aceites nas Palavras) deriva do dicionário pt_PT do [Projecto Natura](https://natura.di.uminho.pt/), da Universidade do Minho (© 2006–2012 José João de Almeida, Rui Vilela e Alberto Simões), e é distribuído sob a Mozilla Public License 1.1 (`licencas/MPL-1.1.txt`).

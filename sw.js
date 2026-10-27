@@ -1,5 +1,5 @@
-// Guarda a app para funcionar offline. Sobe a versão a cada publicação (sala-v13 → sala-v14).
-const VERSION = "sala-v13";
+// Guarda a app para funcionar offline. Sobe a versão a cada publicação (sala-v14 → sala-v15).
+const VERSION = "sala-v14";
 const CORE = [
   "./", "index.html", "manifest.webmanifest",
   "css/base.css", "js/core.js", "js/menu-art.js", "js/app.js", "js/games/sudoku.js", "js/games/minas.js",

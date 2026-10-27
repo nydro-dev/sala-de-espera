@@ -389,6 +389,21 @@
     lastDiff,
     daily: true, dailyLost: "Rebentou",
     duel: true, duelTime: true,
+    /* Código curto: dificuldade, semente, primeira casa, ganhou, pontos (ou casas abertas, se rebentou) e tempo. */
+    code: {
+      pre: "MIN", bits: [3, 16, 10, 1, 15, 14],
+      pack(x) {
+        const di = DIFFS.findIndex(d => d.id === x.d), m = /^([0-9a-z]+)\.(\d+)$/.exec(x.b || ""), sd = m ? Sala.duelCode.seedNum(m[1]) : -1, w = x.s > 0 ? 1 : 0;
+        if (di < 0 || sd < 0) return null;
+        return [di, sd, +m[2], w, Math.round(w ? x.s : x.p || 0), Math.min(16383, Math.round(x.t) || 0)];
+      },
+      unpack(v) {
+        const d = DIFFS[v[0]], c = d && CFG[d.id]; if (!c || v[2] >= c.w * c.h) return null;
+        const free = c.w * c.h - c.m;
+        if (v[3] ? !v[4] : v[4] > free) return null;
+        return { d: d.id, b: Sala.duelCode.seedStr(v[1]) + "." + v[2], w: v[3], s: v[3] ? v[4] : 0, p: v[3] ? free : v[4], t: v[5] };
+      }
+    },
     duelOk(D) { const c = CFG[D.d], m = /^([a-z0-9]{4,20})\.(\d{1,4})$/.exec(D.b); return !!(c && m && +m[2] < c.w * c.h); },
     duelText: r => r.w ? fmtTime(r.t) : "💥 " + fmtNum(r.p) + " casas abertas",
     dailyPlaying() { const d = store.get("minas:dia", null); return !!(d && d.daily === daily.today() && d.state === "play" && !d.practice); },

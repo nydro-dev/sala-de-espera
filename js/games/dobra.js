@@ -228,6 +228,16 @@
     art: '<svg viewBox="0 0 36 36"><rect x="2" y="2" width="15" height="15" rx="3" fill="var(--blue)"/><rect x="19" y="2" width="15" height="15" rx="3" fill="var(--yellow)"/><rect x="2" y="19" width="15" height="15" rx="3" fill="var(--cover)"/><rect x="19" y="19" width="15" height="15" rx="3" fill="var(--ink)"/><text x="26.5" y="30.5" font-size="9" font-weight="900" text-anchor="middle" fill="var(--yellow)" font-family="Roboto,sans-serif">×2</text></svg>',
     lastDiff,
     duel: true,
+    /* Código curto: tabuleiro, semente, pontos e maior peça (em potência de 2). O tempo não conta na Dobra. */
+    code: {
+      pre: "DOB", bits: [2, 16, 22, 5],
+      pack(x) {
+        const di = DIFFS.findIndex(d => d.id === x.d), sd = Sala.duelCode.seedNum(x.b), p = Math.round(x.p) || 0, e = p ? Math.log2(p) : 0;
+        if (di < 0 || sd < 0 || !Number.isInteger(e)) return null;
+        return [di, sd, Math.round(x.s) || 0, e];
+      },
+      unpack: v => DIFFS[v[0]] ? { d: DIFFS[v[0]].id, b: Sala.duelCode.seedStr(v[1]), s: v[2], p: v[3] ? 2 ** v[3] : 0, t: 0, w: 0 } : null
+    },
     duelOk: D => DIFFS.some(x => x.id === D.d) && /^[a-z0-9]{4,20}$/.test(D.b),
     duelText: r => "Maior peça " + fmtNum(r.p),
     meta() {

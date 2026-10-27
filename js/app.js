@@ -99,20 +99,32 @@
   }
 
   /* ---------- Navegação (#/sudoku, #/minas) ---------- */
-  let active = null, fromMenu = false;
+  let active = null, fromMenu = false, passOk = false;
   function go(id) { fromMenu = !!id && !active; location.hash = id ? "#/" + id : ""; }
   Sala.go = go;
   function route() {
     /* O jogo que se chamava 2048 passou a chamar-se Dobra: os links antigos continuam a funcionar. */
     if (/^#\/g2048(\/|$)/.test(location.hash)) { history.replaceState(null, "", "#/dobra"); }
-    /* Duelo: #/duelo/<jogo>/<código> */
-    const dm = location.hash.match(/^#\/duelo\/(\w+)\/([A-Za-z0-9_-]+)/);
+    /* Duelo: #/d/<código curto> (Fase 6.1) ou #/duelo/<jogo>/<código> (links da Fase 6) */
+    const isDuel = /^#\/(?:d|duelo)\//.test(location.hash);
     let duelData = null;
     if (modal.isOpen) modal.close(true);
-    if (dm) {
-      duelData = Sala.openDuel(dm[1], dm[2]);
-      /* Sem jogo para começar (link inválido ou duelo já jogado): fica o menu por baixo da janela. */
-      if (!duelData) { history.replaceState(null, "", location.pathname + location.search); fromMenu = false; }
+    if (isDuel) {
+      const toMenu = () => { history.replaceState(null, "", location.pathname + location.search); fromMenu = false; };
+      const r = Sala.duelCode.decode(location.hash), hash = location.hash;
+      if (r.err) {
+        toMenu();
+        modal.open({ title: "Duelo inválido", body: "<p>" + esc(r.err) + "</p>", actions: [{ label: "Fechar", primary: true }] });
+      } else if (!passOk && Sala.needPass()) {
+        /* Aberto no browser e não na app: primeiro a página de passagem. */
+        toMenu();
+        Sala.duelPass(r.D, () => { passOk = true; fromMenu = true; location.hash = hash; });
+      } else {
+        duelData = Sala.startDuel(r.D);
+        /* Sem jogo para começar (duelo já jogado ou o próprio desafio): fica o menu por baixo da janela. */
+        if (!duelData) toMenu();
+      }
+      passOk = false;
     }
     const mm = duelData ? [null, duelData.g] : location.hash.match(/^#\/(\w+)(?:\/(\w+))?/) || [];
     const id = mm[1], g = id && gameById(id);
@@ -137,8 +149,9 @@
   /* Voltar: se viemos do menu, recua no histórico (o botão de recuar do Android fica coerente). */
   $("g-back").onclick = () => { sound.tap(); if (fromMenu) { fromMenu = false; history.back(); } else go(""); };
   $("g-help").onclick = () => active && Sala.showHelp(active.id);
-  $("g-rank").onclick = () => active && (/^#\/duelo\//.test(location.hash) ? Sala.showRanking(active.id, null, null, "rivals") : Sala.showRanking(active.id, /\/dia$/.test(location.hash) ? "dia" : active.lastDiff && active.lastDiff()));
+  $("g-rank").onclick = () => active && (/^#\/(?:d|duelo)\//.test(location.hash) ? Sala.showRanking(active.id, null, null, "rivals") : Sala.showRanking(active.id, /\/dia$/.test(location.hash) ? "dia" : active.lastDiff && active.lastDiff()));
   $("m-rank").onclick = () => Sala.showRanking();
+  $("m-duel-in").onclick = () => { sound.tap(); Sala.duelInbox(h => { fromMenu = true; passOk = true; location.hash = h; }); };
   $("m-settings").onclick = () => Sala.showSettings();
 
   /* ---------- Teclado: vai para o jogo ativo ---------- */

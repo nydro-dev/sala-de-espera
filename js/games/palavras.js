@@ -286,6 +286,18 @@
     art: '<svg viewBox="0 0 36 36"><rect x="2" y="11" width="9.5" height="14" rx="2" fill="var(--blue)"/><rect x="13.25" y="11" width="9.5" height="14" rx="2" fill="var(--yellow)"/><rect x="24.5" y="11" width="9.5" height="14" rx="2" fill="var(--cover)"/><text x="6.75" y="21.5" font-size="8" font-weight="900" text-anchor="middle" fill="var(--on-accent)" font-family="Roboto,sans-serif">P</text><text x="18" y="21.5" font-size="8" font-weight="900" text-anchor="middle" fill="var(--on-accent)" font-family="Roboto,sans-serif">T</text></svg>',
     lastDiff: () => (P && P.mode !== "duelo" && P.mode) || "livre",
     duel: true, duelTime: true,
+    /* Código curto: número da palavra na lista de soluções, tentativas (7 = falhou) e tempo.
+       A própria palavra entra na verificação: se a lista mudar, o código antigo é recusado. */
+    code: {
+      pre: "PAL", bits: [11, 3, 14],
+      pack(x) {
+        const i = SOL.indexOf(x.b), k = x.w ? POINTS.indexOf(x.s) + 1 : 7;
+        if (x.d !== "livre" || i < 0 || !k) return null;
+        return [i, k, Math.min(16383, Math.round(x.t) || 0)];
+      },
+      unpack: v => SOL[v[0]] && v[1] ? { d: "livre", b: SOL[v[0]], w: v[1] < 7 ? 1 : 0, s: v[1] < 7 ? POINTS[v[1] - 1] : 0, p: 0, t: v[2] } : null,
+      ctx: x => key(x.b)
+    },
     duelOk: D => D.d === "livre" && typeof D.b === "string" && D.b.length === LEN && SHOWN.has(key(D.b)),
     duelLabel: () => "Jogo livre",
     duelText: r => r.w ? (POINTS.indexOf(r.s) + 1 || "?") + "/" + TRIES + " · " + fmtTime(r.t) : "X/" + TRIES,

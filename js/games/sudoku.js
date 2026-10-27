@@ -213,21 +213,39 @@
     if (d && d.puzzle && d.solution) { S = Object.assign({ hints: 0, noteMode: false }, d); return true; }
     return false;
   }
-  const save = () => { if (S) store.set(KEY(), S); };
+  const save = () => { if (S && !S.pending) store.set(KEY(), S); };
   const progress = () => S && !S.done && S.vals.some((v, i) => v && !S.puzzle[i]);
 
+  /* Novo jogo. Os jogos normais também saem de uma semente curta (Fase 6.1), para o Desafiar dar um
+     código que se escreve à mão; sem limite de tempo, porque o mesmo código tem de dar o mesmo
+     Sudoku em qualquer aparelho. Gerar pode levar uns segundos num telemóvel lento: o tabuleiro
+     aparece vazio com "A preparar o tabuleiro…" e o jogo só começa quando estiver pronto. */
+  let genId = 0;
   function newGame(diff, practice) {
     diff = duelD ? duelD.d : isDaily ? DAILY_DIFF : diff || (S && S.diff) || "medium";
-    const ds = daily.today();
-    let puzzle, solution;
-    if (duelD) { puzzle = unpackBoard(duelD.b); solution = solve(puzzle); }
-    else ({ puzzle, solution } = generate(diff, isDaily ? daily.rng("sudoku", ds) : null));
-    S = { diff, puzzle, solution, vals: puzzle.slice(), notes: Array(81).fill(0), sel: puzzle.indexOf(0), errors: 0, hints: 0, time: 0, done: false, noteMode: false };
-    if (duelD) S.bid = duelD.bid;
-    else if (isDaily) { S.daily = ds; if (practice) S.practice = true; }
-    hist = []; anims = {};
-    save();
-    if (els) { msg(isDaily ? dailyMsg() : ""); syncDiff(); render(); animateBoardIn(); }
+    const ds = daily.today(), dD = duelD, daily_ = isDaily;
+    const zero = Array(81).fill(0);
+    const ph = { diff, puzzle: zero.slice(), solution: zero.slice(), vals: zero.slice(), notes: zero.slice(), sel: -1, errors: 0, hints: 0, time: 0, done: false, noteMode: false, pending: true };
+    if (dD) ph.bid = dD.bid;
+    else if (daily_) { ph.daily = ds; if (practice) ph.practice = true; }
+    S = ph; hist = []; anims = {};
+    const id = ++genId;
+    if (els) { msg("A preparar o tabuleiro…"); syncDiff(); render(); }
+    const build = () => {
+      if (id !== genId || S !== ph) return;
+      let puzzle, solution, seed = null;
+      const dseed = dD && Sala.duelCode.seedNum(dD.b) >= 0 ? dD.b : null;
+      if (dD && !dseed) { puzzle = unpackBoard(dD.b); solution = solve(puzzle); }
+      else if (daily_ && !dD) ({ puzzle, solution } = generate(diff, daily.rng("sudoku", ds)));
+      else { seed = dseed || Sala.duel.newSeed(); ({ puzzle, solution } = generate(diff, Sala.rng("sudoku:" + seed))); }
+      if (id !== genId || S !== ph) return;
+      Object.assign(ph, { puzzle, solution, vals: puzzle.slice(), sel: puzzle.indexOf(0) });
+      if (seed) ph.seed = seed;
+      delete ph.pending;
+      save();
+      if (els) { msg(dD ? "Mesmo tabuleiro de " + dD.n + ". Os pontos contam como num jogo normal." : daily_ ? dailyMsg() : ""); syncDiff(); render(); animateBoardIn(); }
+    };
+    setTimeout(build, 40);
   }
   const dailyMsg = () => { const r = daily.result("sudoku"); return r ? (S && S.practice && !S.done ? "Repetição: esta não conta." : "Desafio feito: " + fmtNum(r.score) + " pontos em " + fmtTime(r.time) + ".") : ""; };
   function askNew(diff) {
@@ -303,13 +321,14 @@
     if (duelD) msg(S.done ? "Duelo terminado." : "Mesmo tabuleiro de " + duelD.n + ". Os pontos contam como num jogo normal.");
     else if (isDaily) msg(dailyMsg());
     else if (S.done) msg("Resolvido. Começa outro quando quiseres.");
+    if (S.pending) msg("A preparar o tabuleiro…");
     render();
     animateBoardIn();
   }
   function unmount() { save(); els = null; if (isDaily || duelD) { S = null; isDaily = false; duelD = null; } }
   /* Duelo: desistir conta como derrota, com as casas certas como desempate. */
   function askGiveUp() {
-    if (S.done) return;
+    if (S.done || S.pending) return;
     modal.open({
       title: "Desistir do duelo?",
       body: "<p>O duelo acaba com 0 pontos. Só desempata pelas casas que já tens certas.</p>",
@@ -392,6 +411,7 @@
   /* ---------- Ações ---------- */
   function push() { hist.push({ vals: S.vals.slice(), notes: S.notes.slice() }); if (hist.length > 300) hist.shift(); }
   function input(v) {
+    if (S.pending) return;
     const i = S.sel; if (i < 0 || S.puzzle[i] || S.done) return;
     if (S.noteMode) {
       if (S.vals[i]) return;
@@ -418,16 +438,17 @@
     check(); save(); render();
   }
   function erase() {
+    if (S.pending) return;
     const i = S.sel; if (i < 0 || S.puzzle[i] || S.done || (!S.vals[i] && !S.notes[i])) return;
     push(); S.vals[i] = 0; S.notes[i] = 0; sound.tap(); save(); render();
   }
   function undo() {
-    if (S.done) return;
+    if (S.done || S.pending) return;
     const h = hist.pop(); if (!h) { toast("Nada para desfazer."); return; }
     S.vals = h.vals; S.notes = h.notes; sound.tap(); save(); render();
   }
   function hint() {
-    if (S.done) return;
+    if (S.done || S.pending) return;
     let i = S.sel;
     if (i < 0 || S.vals[i] === S.solution[i]) {
       const cand = []; for (let k = 0; k < 81; k++) if (S.vals[k] !== S.solution[k]) cand.push(k);
@@ -454,7 +475,7 @@
         game: "sudoku", diff: S.diff, diffLabel: dl, title: "Sudoku resolvido", score: sc.total, time: S.time,
         breakdown: [["Base (" + dl + ")", fmtNum(sc.base)], ["Tempo " + fmtTime(S.time), "−" + fmtNum(sc.tPen)], ["Erros × " + S.errors, "−" + fmtNum(sc.ePen)], ["Pistas × " + S.hints, "−" + fmtNum(sc.hPen)]],
         extra: { errors: S.errors, hints: S.hints }, daily: dd, practice, duel: dD,
-        challenge: { d: S.diff, b: packBoard(S.puzzle) },
+        challenge: { d: S.diff, b: S.seed || packBoard(S.puzzle) },
         share: { lines: ["Tempo " + fmtTime(S.time), S.errors + (S.errors === 1 ? " erro" : " erros") + " · " + S.hints + (S.hints === 1 ? " pista" : " pistas")] },
         newLabel: dd ? "Jogo normal" : "Novo jogo",
         onNew: () => dd ? Sala.go("sudoku") : newGame(S.diff)
@@ -464,6 +485,7 @@
   }
 
   function onKey(e) {
+    if (!S || S.pending) return;
     const k = e.key; let i = S.sel < 0 ? 0 : S.sel;
     if (/^[1-9]$/.test(k)) { input(+k); e.preventDefault(); }
     else if (k === "Backspace" || k === "Delete" || k === "0") { erase(); e.preventDefault(); }
@@ -477,7 +499,7 @@
     }
   }
   function tick() {
-    if (!S || S.done) return;
+    if (!S || S.done || S.pending) return;
     S.time++;
     const t = document.getElementById("s-time"); if (t) t.textContent = fmtTime(S.time);
     if (S.time % 5 === 0) save();
@@ -509,7 +531,23 @@
     lastDiff: () => (S || load() && S) ? S.diff : "medium",
     daily: true,
     duel: true, duelTime: true,
-    duelOk(D) { if (!DIFFS.some(x => x.id === D.d)) return false; const p = unpackBoard(D.b); return !!p && p.filter(Boolean).length >= 17 && count(p.slice(), 2) === 1; },
+    /* Código curto: dificuldade, semente, ganhou, pontos (ou casas certas, se desistiu) e tempo. */
+    code: {
+      pre: "SUD", bits: [3, 16, 1, 13, 14],
+      pack(x) {
+        const di = DIFFS.findIndex(d => d.id === x.d), sd = Sala.duelCode.seedNum(x.b), w = x.s > 0 ? 1 : 0;
+        if (di < 0 || sd < 0) return null;
+        return [di, sd, w, w ? Math.round(x.s) : Math.round(x.p || 0), Math.min(16383, Math.round(x.t) || 0)];
+      },
+      unpack(v) {
+        if (!DIFFS[v[0]] || (v[2] && !v[3]) || (!v[2] && v[3] > 81)) return null;
+        return { d: DIFFS[v[0]].id, b: Sala.duelCode.seedStr(v[1]), w: v[2], s: v[2] ? v[3] : 0, p: v[2] ? 0 : v[3], t: v[4] };
+      }
+    },
+    duelOk(D) {
+      if (!DIFFS.some(x => x.id === D.d)) return false;
+      if (Sala.duelCode.seedNum(D.b) >= 0) return true; /* semente curta (Fase 6.1) */
+      const p = unpackBoard(D.b); return !!p && p.filter(Boolean).length >= 17 && count(p.slice(), 2) === 1; },
     dailyPlaying() { const d = store.get("sudoku:dia", null); return !!(d && d.daily === daily.today() && !d.done && !d.practice && d.vals.some((v, i) => v && !d.puzzle[i])); },
     meta() {
       const out = [];

@@ -327,8 +327,8 @@
     x.fillStyle = "#4DCBFF"; x.font = F(500, 32); x.fillText(SITE.replace(/^https:\/\//, "").replace(/\/$/, ""), M, H - 58);
     return new Promise(res => { try { c.toBlob(b => res(b), "image/png"); } catch (e) { res(null); } });
   }
-  async function copyText(t) {
-    try { await navigator.clipboard.writeText(t); toast("Texto copiado. Já o podes colar numa mensagem."); }
+  async function copyText(t, done) {
+    try { await navigator.clipboard.writeText(t); toast(done || "Texto copiado. Já o podes colar numa mensagem."); }
     catch (e) { toast("Não consegui copiar automaticamente."); }
   }
   /* No telemóvel abre logo a folha de partilha do sistema; no PC mostra a imagem com opções. */
@@ -363,9 +363,95 @@
   const unb64u = str => { str = str.replace(/-/g, "+").replace(/_/g, "/"); while (str.length % 4) str += "="; const bin = atob(str); return Uint8Array.from(bin, c => c.charCodeAt(0)); };
   /* Baralha os bytes para o link não se ler à primeira (não é segurança: quem souber, consegue falsificá-lo). */
   const mask = bytes => { const r = rng("sala-de-espera:duelo"); return bytes.map(b => b ^ (r() * 256 | 0)); };
-  const nameKey = n => String(n || "").trim().toLocaleLowerCase("pt-PT");
+  /* Nomes comparados sem acentos nem maiúsculas: "João" escrito à mão como "JOAO" é o mesmo rival. */
+  const plainName = n => String(n || "").normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const nameKey = n => plainName(n).trim().replace(/\s+/g, " ").toLocaleLowerCase("pt-PT");
+
+  /* ---------- Código de duelo (Fase 6.1) ----------
+     Versão curta do link, para escrever ou colar na app instalada (no iPhone os links abrem
+     sempre no Safari, que guarda os dados à parte). Forma: PREFIXO-DADOS-NOME, por exemplo
+     SUD-K7F3-QX9M-2TAB-Rui. Os dados vão em binário, campo a campo, com o desenho que cada
+     jogo declara em `code` ({ pre, bits, pack(x), unpack(v), ctx(x) }), escritos no alfabeto
+     Crockford base32 (sem I, L, O e U). No fim vão dois caracteres de verificação: o primeiro
+     (Luhn mod 32) apanha qualquer erro num só carácter; o segundo mistura tudo, incluindo o
+     nome e o que o jogo disser (nas Palavras, a própria palavra, para que um código não abra
+     outra palavra se a lista mudar). */
+  const CROCK = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+  const CROCK_IN = (() => { const m = {}; for (let i = 0; i < 32; i++) m[CROCK[i]] = i; m.I = m.L = 1; m.O = 0; return m; })();
+  /* Sementes curtas: 16 bits em base 36 com 4 caracteres (65 536 tabuleiros por dificuldade). */
+  const SEED_MAX = 65536;
+  const seedNum = s => typeof s === "string" && /^[0-9a-z]{4}$/.test(s) && parseInt(s, 36) < SEED_MAX ? parseInt(s, 36) : -1;
+  const seedStr = n => n.toString(36).padStart(4, "0");
+  const luhn32 = vals => { let f = 2, sum = 0; for (let i = vals.length - 1; i >= 0; i--) { let a = f * vals[i]; f = f === 2 ? 1 : 2; sum += Math.floor(a / 32) + a % 32; } return (32 - sum % 32) % 32; };
+  const codeName = n => plainName(n).toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const codeMix = (game, vals, name, ctx) => Math.floor(rng("sala-de-espera:codigo|" + game + "|" + vals.join(".") + "|" + codeName(name) + "|" + (ctx || ""))() * 32);
+  const codeMask = (game, n) => { const r = rng("sala-de-espera:codigo:" + game); return [...Array(n)].map(() => r() * 32 | 0); };
+  const code = {
+    CROCK, seedNum, seedStr,
+    /* Quantos caracteres de dados (sem verificação) leva o código deste jogo. */
+    size: g => Math.ceil(g.code.bits.reduce((a, b) => a + b, 0) / 5),
+    /* x = { d, b, s, t, p, w }; devolve null se não couber (semente antiga, pontuação enorme…). */
+    encode(game, x, name) {
+      const g = gameById(game), C = g && g.code; if (!C || !String(name || "").trim()) return null;
+      let v; try { v = C.pack(x); } catch (e) { v = null; }
+      if (!v || v.length !== C.bits.length || v.some((n, i) => !Number.isInteger(n) || n < 0 || n >= 2 ** C.bits[i])) return null;
+      let big = 0n; C.bits.forEach((b, i) => { big = (big << BigInt(b)) | BigInt(v[i]); });
+      const n = code.size(g), total = C.bits.reduce((a, b) => a + b, 0);
+      big <<= BigInt(n * 5 - total);
+      const vals = [], mask = codeMask(game, n);
+      for (let i = n - 1; i >= 0; i--) { vals[i] = Number(big & 31n); big >>= 5n; }
+      const data = vals.map((c, i) => c ^ mask[i]);
+      const nm = String(name).trim().slice(0, 16);
+      const all = data.concat(luhn32(data), codeMix(game, data, nm, C.ctx ? C.ctx(x) : ""));
+      const s = all.map(c => CROCK[c]).join("");
+      return C.pre + "-" + s.match(/.{1,4}/g).join("-") + "-" + nm;
+    },
+    /* Lê um código escrito à mão ou colado (aceita também o link inteiro).
+       Devolve { D } (o mesmo formato do link) ou { err } com uma frase para mostrar. */
+    decode(text) {
+      let t = String(text || "").trim();
+      const lk = t.match(/#\/(?:d|duelo)\/(.+)$/);
+      if (lk) {
+        const h = lk[1];
+        const long = h.match(/^(\w+)\/([A-Za-z0-9_-]+)/);
+        if (long && /^#\/duelo\//.test(lk[0])) {
+          const g = gameById(long[1]), D = g && g.duel ? duel.decode(long[1], long[2]) : null;
+          return D && !(g.duelOk && !g.duelOk(D)) ? { D } : { err: "Este link está incompleto ou foi alterado. Pede a quem o mandou que o envie outra vez." };
+        }
+        try { t = decodeURIComponent(h.replace(/\+/g, " ")); } catch (e) { t = h.replace(/\+/g, " "); }
+      }
+      /* Lê o prefixo e os dados, ignorando hífenes e espaços; o resto é o nome. */
+      let i = 0, chars = "";
+      const take = n => { while (i < t.length && chars.length < n) { const c = t[i].toUpperCase(); i++; if (c === "-" || c === " " || c === "." || c === "‑") continue; chars += c; } };
+      take(3);
+      const pre = chars.toUpperCase(), g = games.find(x => x.code && x.code.pre === pre);
+      if (!g) return { err: chars.length < 3 ? "Escreve o código todo, começando pelas três letras do jogo (por exemplo, SUD)." : "As três primeiras letras (" + pre + ") não correspondem a nenhum jogo." };
+      const n = code.size(g);
+      chars = ""; take(n + 2);
+      if (chars.length < n + 2) return { err: "Faltam caracteres ao código." };
+      const vals = [];
+      for (const c of chars) { if (!(c in CROCK_IN)) return { err: "O código tem um carácter que não existe (" + c + ")." }; vals.push(CROCK_IN[c]); }
+      const name = t.slice(i).replace(/^[\s\-‑]+/, "").trim().slice(0, 16);
+      if (!name) return { err: "Falta o nome de quem desafia, no fim do código." };
+      const data = vals.slice(0, n);
+      if (luhn32(data) !== vals[n]) return { err: "O código tem um erro. Confirma letra a letra." };
+      const mask = codeMask(g.id, n);
+      let big = 0n; data.forEach((c, k) => { big = (big << 5n) | BigInt(c ^ mask[k]); });
+      const C = g.code, total = C.bits.reduce((a, b) => a + b, 0);
+      big >>= BigInt(n * 5 - total);
+      const v = [];
+      for (let k = C.bits.length - 1; k >= 0; k--) { v[k] = Number(big & ((1n << BigInt(C.bits[k])) - 1n)); big >>= BigInt(C.bits[k]); }
+      let x; try { x = C.unpack(v); } catch (e) { x = null; }
+      if (!x || codeMix(g.id, data, name, C.ctx ? C.ctx(x) : "") !== vals[n + 1]) return { err: "O código tem um erro (confirma também o nome no fim)." };
+      const D = { g: g.id, d: x.d, b: x.b, n: name, s: x.s, t: x.t, p: x.p || 0, w: x.w ? 1 : 0, bid: duel.boardId(g.id, x.d, x.b) };
+      if (g.duelOk && !g.duelOk(D)) return { err: "Este código não dá um tabuleiro válido." };
+      return { D };
+    },
+    url: c => SITE + "#/d/" + encodeURIComponent(c).replace(/%20/g, "+").replace(/%2D/gi, "-")
+  };
+
   const duel = {
-    newSeed: () => (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, 10),
+    newSeed: () => seedStr(Math.random() * SEED_MAX | 0),
     boardId: (game, d, b) => hash36("board|" + game + "|" + d + "|" + b),
     encode(game, x) {
       const json = JSON.stringify([1, x.d, x.b, String(x.n).slice(0, 16), Math.round(x.s) || 0, Math.round(x.t) || 0, Math.round(x.p) || 0, x.w ? 1 : 0]);
@@ -381,7 +467,23 @@
       } catch (e) { return null; }
     },
     url: (game, x) => SITE + "#/duelo/" + game + "/" + duel.encode(game, x),
-    data: () => Object.assign({ mine: {}, seen: {}, rivals: {}, recent: [] }, store.get("duelos", {})),
+    data() {
+      const all = Object.assign({ mine: {}, seen: {}, rivals: {}, recent: [] }, store.get("duelos", {}));
+      /* Fase 6.1: os rivais passam a juntar-se sem acentos ("João" = "Joao"); funde os que já existiam. */
+      if (all.nk !== 2) {
+        const rv = {};
+        Object.values(all.rivals).forEach(x => {
+          const k = nameKey(x.name), y = rv[k];
+          if (!y) rv[k] = Object.assign({}, x);
+          else { y.w += x.w; y.l += x.l; y.e += x.e; if ((x.last || 0) > (y.last || 0)) { y.last = x.last; y.name = x.name; } }
+        });
+        const seen = {};
+        Object.keys(all.seen).forEach(k => { const i = k.indexOf("|"); seen[k.slice(0, i) + "|" + nameKey(k.slice(i + 1))] = all.seen[k]; });
+        all.rivals = rv; all.seen = seen; all.nk = 2;
+        store.set("duelos", all);
+      }
+      return all;
+    },
     mine: bid => duel.data().mine[bid] || null,
     /* Quem ganhou: mais pontos; depois mais progresso; depois menos tempo (nos jogos em que o tempo conta). */
     cmp(game, a, b) {
@@ -437,9 +539,9 @@
       duel.withName(n => {
         const bid = duel.boardId(game, x.d, x.b), me = { s: x.s, t: x.t, p: x.p || 0, w: x.w ? 1 : 0 };
         duel.saveMine(bid, me);
-        const link = duel.url(game, Object.assign({}, x, { n }));
+        const c = code.encode(game, x, n), link = c ? code.url(c) : duel.url(game, Object.assign({}, x, { n }));
         const text = "Desafio-te para um duelo de " + g.name + " (" + duel.label(game, x.d) + ") na Sala de Espera. Fiz " + fmtNum(x.s) + " pts (" + duel.line(game, me) + "). Consegues melhor?";
-        sendLink("Desafiar", text, link, "Manda este link a quem quiseres desafiar. Quem o abrir joga o mesmo tabuleiro.");
+        sendLink("Desafiar", text, link, c, "Manda isto a quem quiseres desafiar. Quem abrir o link, ou escrever o código na app, joga o mesmo tabuleiro.");
       });
     },
     /* Devolver: manda o meu resultado no mesmo tabuleiro a quem me desafiou. */
@@ -447,16 +549,19 @@
       const g = gameById(D.g) || {};
       duel.withName(n => {
         const r = duel.cmp(D.g, me, D);
-        const link = duel.url(D.g, { d: D.d, b: D.b, n, s: me.s, t: me.t, p: me.p, w: me.w });
+        const x = { d: D.d, b: D.b, s: me.s, t: me.t, p: me.p, w: me.w };
+        const c = code.encode(D.g, x, n), link = c ? code.url(c) : duel.url(D.g, Object.assign({ n }, x));
         const text = "Joguei o teu duelo de " + g.name + " (" + duel.label(D.g, D.d) + "): fiz " + fmtNum(me.s) + " pts e tu " + fmtNum(D.s) + ". " + (r > 0 ? "Ganhei eu." : r < 0 ? "Ganhaste tu." : "Empate.") + " Vê o resultado aqui:";
-        sendLink("Devolver desafio", text, link, "Quem te desafiou vê a comparação ao abrir o link, sem ter de jogar outra vez.");
+        sendLink("Devolver desafio", text, link, c, "Quem te desafiou vê a comparação ao abrir o link (ou ao escrever o código na app), sem ter de jogar outra vez.");
       });
     }
   };
   const SWORDS = '<svg viewBox="0 0 24 24"><path d="M14.5 17.5L3 6V3h3l11.5 11.5"/><path d="M13 19l6-6M16 16l4 4M19 21l2-2"/><path d="M14.5 6.5L18 3h3v3l-3.5 3.5"/><path d="M5 14l4 4M7 17l-3 3M3 19l2 2"/></svg>';
-  /* No telemóvel abre logo a folha de partilha; no PC mostra o link com Copiar. */
-  function sendLink(title, text, link, hint) {
-    const full = text + "\n" + link;
+  /* No telemóvel abre logo a folha de partilha; no PC mostra o link e o código com Copiar.
+     A mensagem leva o link e, quando há, o código para quem tem a app instalada. */
+  const codeLine = c => "Na app instalada: Duelo recebido e escreve " + c;
+  function sendLink(title, text, link, c, hint) {
+    const full = text + "\n" + link + (c ? "\n" + codeLine(c) : "");
     if (navigator.share && matchMedia("(pointer: coarse)").matches) {
       navigator.share({ text: full }).catch(e => { if (!e || e.name !== "AbortError") showLink(); });
       return;
@@ -465,12 +570,14 @@
     function showLink() {
       const box = el("div", { class: "share-prev" });
       box.appendChild(el("p", { class: "hint" }, esc(hint)));
+      if (c) box.appendChild(el("div", { class: "duel-code", "aria-label": "Código do duelo" }, esc(c)));
       const inp = el("input", { class: "input duel-link", readonly: true, value: link, "aria-label": "Link do duelo" });
       inp.addEventListener("focus", () => inp.select());
       box.appendChild(inp);
       box.appendChild(el("pre", { class: "share-text" }, esc(full)));
       const acts = [];
       if (navigator.share) acts.push({ label: "Partilhar…", close: false, onClick: () => { navigator.share({ text: full }).catch(() => {}); } });
+      if (c) acts.push({ label: "Copiar código", close: false, onClick: () => { copyText(c, "Código copiado."); } });
       acts.push({ label: "Copiar link", close: false, onClick: () => { navigator.clipboard.writeText(link).then(() => toast("Link copiado."), () => { inp.focus(); toast("Seleciona o link e copia-o."); }); } });
       acts.push({ label: "Copiar mensagem", primary: true, close: false, onClick: () => { copyText(full); } });
       modal.open({ title, body: box, className: "share", actions: acts });
@@ -490,10 +597,17 @@
       modal.open({ title: "Link de duelo inválido", body: "<p>Este link está incompleto ou foi alterado. Pede a quem o mandou que o envie outra vez.</p>", actions: [{ label: "Fechar", primary: true }] });
       return null;
     }
+    return startDuel(D);
+  }
+  /* Começar um duelo já lido (de um link ou de um código). */
+  function startDuel(D) {
+    const game = D.g, g = gameById(game);
     const mine = duel.mine(D.bid);
     if (!mine) return D;
     /* Já joguei este tabuleiro (ou fui eu que desafiei): mostra logo a comparação. */
-    if (nameKey(D.n) === nameKey(settings.name) && mine.s === D.s && mine.t === D.t) {
+    /* (o código curto guarda o tempo até 4,5 h, e na Dobra e na Cobra nem o guarda, porque aí não conta) */
+    const sameT = !g.duelTime || Math.min(mine.t || 0, 16383) === Math.min(D.t || 0, 16383);
+    if (nameKey(D.n) === nameKey(settings.name) && mine.s === D.s && (mine.p || 0) === (D.p || 0) && sameT) {
       modal.open({ title: "Este desafio é teu", body: "<p>É o link que criaste. Manda-o a quem quiseres desafiar: quem o abrir joga o mesmo tabuleiro.</p>", actions: [{ label: "Fechar", primary: true }] });
       return null;
     }
@@ -525,6 +639,56 @@
     if (r > 0) { sound.win(); vibrate([30, 60, 30, 60, 80]); fx.confetti(); } else { sound.line(); vibrate(30); }
     return { pos: 0, id: null };
   }
+
+  /* ---------- Duelo recebido e página de passagem (Fase 6.1) ---------- */
+  /* A correr como app instalada (ecrã próprio, sem barra do browser)? */
+  const standalone = () => { try { return matchMedia("(display-mode: standalone)").matches || matchMedia("(display-mode: fullscreen)").matches || navigator.standalone === true; } catch (e) { return false; } };
+  /* Hash a abrir para um duelo: o código curto, se der; senão o próprio link. */
+  const duelHash = (D, raw) => { const c = code.encode(D.g, D, D.n); return c ? "#/d/" + code.url(c).split("#/d/")[1] : raw; };
+  /* Janela "Duelo recebido": campo para escrever ou colar o código (ou o link inteiro). open(hash) abre o duelo. */
+  function duelInbox(open) {
+    const box = el("div", { class: "duel-in-box" });
+    box.appendChild(el("p", { class: "hint" }, "Escreve ou cola o código que te mandaram, com o nome no fim. Também aceita o link inteiro."));
+    const lab = el("label", { for: "duel-code-in", class: "lbl" }, "Código do duelo");
+    const inp = el("input", { id: "duel-code-in", class: "input duel-code-in", type: "text", autocomplete: "off", autocapitalize: "characters", autocorrect: "off", spellcheck: "false", enterkeyhint: "go", placeholder: "SUD-K7F3-QX9M-2TAB-Rui", "aria-describedby": "duel-code-msg" });
+    const err = el("p", { id: "duel-code-msg", class: "msg bad", role: "alert" });
+    box.append(lab, inp, err);
+    const go = () => {
+      const v = inp.value.trim();
+      if (!v) { err.textContent = "Escreve o código primeiro."; inp.focus(); return false; }
+      const r = code.decode(v);
+      if (r.err) { err.textContent = r.err; inp.focus(); vibrate(30); return false; }
+      const raw = (v.match(/#\/(?:d|duelo)\/.+$/) || [""])[0];
+      modal.close(true); open(duelHash(r.D, raw)); return false;
+    };
+    inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); go(); } });
+    inp.addEventListener("input", () => { err.textContent = ""; });
+    const acts = [];
+    if (navigator.clipboard && navigator.clipboard.readText) acts.push({ label: "Colar", close: false, onClick: () => { navigator.clipboard.readText().then(t => { inp.value = t.trim(); err.textContent = ""; inp.focus(); }).catch(() => { inp.focus(); toast("Cola o código no campo."); }); } });
+    acts.push({ label: "Abrir duelo", primary: true, close: false, onClick: go });
+    modal.open({ title: "Duelo recebido", body: box, className: "duel-in", actions: acts });
+    setTimeout(() => { try { inp.focus(); } catch (e) {} }, 60);
+  }
+  /* Página de passagem: o link abriu no browser e não na app instalada (no iPhone é sempre assim,
+     e o browser guarda os jogos à parte). Dá o código para levar para a app, ou deixa jogar aqui. */
+  function duelPass(D, here) {
+    const c = code.encode(D.g, D, D.n), g = gameById(D.g) || {};
+    const box = el("div", { class: "duel-pass" });
+    box.appendChild(el("p", { class: "duel-head" }, esc(g.name || D.g) + " · " + esc(duel.label(D.g, D.d)) + " · desafio de " + esc(D.n)));
+    box.appendChild(el("p", {}, "Os links abrem no browser, que guarda os jogos e os Rivais à parte da app. Para este duelo ficar na app, copia o " + (c ? "código" : "link") + ", abre a Sala de Espera instalada e toca em <b>Duelo recebido</b>."));
+    if (c) box.appendChild(el("div", { class: "duel-code", "aria-label": "Código do duelo" }, esc(c)));
+    const chk = el("label", { class: "check" }, '<input type="checkbox" id="duel-pass-off"> <span>Não voltar a perguntar neste browser</span>');
+    box.appendChild(chk);
+    const off = () => { if (box.querySelector("#duel-pass-off").checked) store.set("duelPass:off", true); };
+    modal.open({
+      title: "Tens a Sala de Espera instalada?", body: box, className: "duel-pass-m", onClose: off,
+      actions: [
+        { label: "Jogar aqui", onClick: () => { off(); setTimeout(here, 0); } },
+        { label: c ? "Copiar o código" : "Copiar o link", primary: true, close: false, onClick: () => { off(); copyText(c || location.href, (c ? "Código" : "Link") + " copiado. Abre a app e toca em Duelo recebido."); } }
+      ]
+    });
+  }
+  const needPass = () => !standalone() && !store.get("duelPass:off", false);
 
   /* ---------- Fim de jogo: pontuação, ranking e janela de resultado ---------- */
   function finish(o) {
@@ -669,7 +833,10 @@
   /* ---------- Janela de ajuda ---------- */
   function showHelp(gameId) {
     const g = gameById(gameId); if (!g) return;
-    modal.open({ title: "Como jogar · " + g.name, body: g.help(), className: "help", actions: [{ label: "Percebido", primary: true }] });
+    let html = g.help();
+    /* Nota comum a todos os jogos com duelo: o código para a app instalada (Fase 6.1). */
+    if (g.code) { const i = html.indexOf("<h4>Duelo</h4>"), j = i < 0 ? -1 : html.indexOf("</p>", i); if (j > 0) html = html.slice(0, j + 4) + "<p>A mensagem do duelo leva também um código curto (por exemplo, <b>" + g.code.pre + "-…-Nome</b>). Se tiveres a app instalada, toca em <b>Duelo recebido</b>, no menu, e escreve ou cola o código: no iPhone os links abrem sempre no Safari, que guarda os jogos à parte da app.</p>" + html.slice(j + 4); }
+    modal.open({ title: "Como jogar · " + g.name, body: html, className: "help", actions: [{ label: "Percebido", primary: true }] });
   }
 
   /* ---------- Janela de definições ---------- */
@@ -713,5 +880,5 @@
     modal.open({ title: "Definições", body: box, onClose: () => setSetting("name", inp.value.trim().slice(0, 16)), actions: [{ label: "Fechar", primary: true }] });
   }
 
-  window.Sala = { duel, openDuel, $, el, esc, fmtTime, fmtNum, shuffle, clamp, rng, SITE, store, settings, setSetting, motion, sound, vibrate, toast, modal, fx, ranking, daily, stats, share, shareImage, copyText, registerGame, games, gameById, ui, finish, showRanking, showHelp, showSettings };
+  window.Sala = { duel, openDuel, startDuel, duelCode: code, duelInbox, duelPass, needPass, standalone, $, el, esc, fmtTime, fmtNum, shuffle, clamp, rng, SITE, store, settings, setSetting, motion, sound, vibrate, toast, modal, fx, ranking, daily, stats, share, shareImage, copyText, registerGame, games, gameById, ui, finish, showRanking, showHelp, showSettings };
 })();

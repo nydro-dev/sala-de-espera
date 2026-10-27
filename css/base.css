@@ -550,3 +550,26 @@ html.cb-lock,html.cb-lock body{overscroll-behavior:none;touch-action:none;overfl
 .duel-recent li>span:first-child{min-width:0;overflow-wrap:anywhere}
 .dr{flex:none;font-size:.78rem;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--sunken);color:var(--muted)}
 .dr.win{background:var(--yellow);color:var(--on-accent)}
+
+/* ---------- Código de duelo (Fase 6.1) ---------- */
+.duel-in-btn{display:flex;align-items:center;gap:12px;width:100%;margin-top:-8px;padding:10px 12px 10px 10px;border-radius:var(--r-sm);border:1px solid color-mix(in srgb,var(--blue) 40%,var(--line));background:var(--blue-softer);color:var(--ink);text-align:left}
+.duel-in-btn:hover{border-color:var(--blue)}
+.duel-in-btn .ico{width:38px;height:38px;border-radius:10px;background:var(--blue);color:var(--on-accent);display:grid;place-items:center;flex:none}
+.duel-in-btn svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.duel-in-btn .txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.duel-in-btn b{font-size:.95rem;font-weight:700}
+.duel-in-btn small{color:var(--muted);font-size:.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.duel-in-btn .chev{width:18px;height:18px;color:var(--muted);flex:none}
+.duel-in-box{display:flex;flex-direction:column;gap:8px}
+.duel-in-box .lbl{font-weight:500}
+.duel-code-in{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:1.05rem;letter-spacing:.04em}
+.duel-in-box .msg{text-align:left;font-weight:500;font-size:.9rem;min-height:1.3em}
+.duel-code{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:1.15rem;font-weight:700;letter-spacing:.05em;text-align:center;padding:12px 10px;border-radius:12px;background:var(--blue-softer);border:1px dashed color-mix(in srgb,var(--blue) 55%,var(--line));color:var(--blue-ink);overflow-wrap:anywhere;user-select:all;-webkit-user-select:all}
+.duel-pass{display:flex;flex-direction:column;gap:12px}
+.duel-pass p{margin:0}
+.check{display:flex;align-items:center;gap:8px;font-size:.88rem;color:var(--muted);cursor:pointer}
+.check input{width:18px;height:18px;accent-color:var(--blue);flex:none}
+.sd-wait{display:grid;place-items:center;gap:10px;min-height:240px;color:var(--muted);font-weight:500;text-align:center}
+.sd-wait i{width:28px;height:28px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--blue);animation:sd-spin .8s linear infinite}
+@keyframes sd-spin{to{transform:rotate(360deg)}}
+.duel-in-box .hint{text-align:left;margin:0}
