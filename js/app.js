@@ -1,7 +1,7 @@
 /* Sala de Espera — menu, navegação entre ecrãs, relógio comum e arranque. */
 (function () {
   "use strict";
-  const { $, el, esc, store, settings, ranking, modal, sound, games, gameById } = Sala;
+  const { $, el, esc, store, settings, ranking, modal, sound, toast, games, gameById } = Sala;
 
   /* ---------- Migração da versão anterior (ficheiro único) ---------- */
   if (!store.get("migrated", false)) {
@@ -83,7 +83,50 @@
 
   route();
 
-  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
-    addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  /* ---------- Atualizações ----------
+     O service worker novo instala-se sozinho; quando assume o controlo, aparece uma barra
+     para recarregar (nunca recarrega a meio de um jogo sem o jogador pedir). */
+  const SW = "serviceWorker" in navigator && location.protocol.startsWith("http");
+  let reg = null, bar = null;
+  function showUpdateBar() {
+    if (bar) return;
+    bar = el("div", { class: "update-bar", role: "status" }, "<span>Há uma versão nova da Sala de Espera.</span>");
+    const b = el("button", { class: "btn primary", type: "button" }, "Atualizar");
+    b.onclick = () => { if (active && active.save) active.save(); location.reload(); };
+    const x = el("button", { class: "icon-btn", type: "button", "aria-label": "Depois" }, '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>');
+    x.onclick = () => { bar.remove(); bar = null; };
+    bar.append(b, x); document.body.appendChild(bar);
+  }
+  /* Versão em uso, perguntada ao service worker que controla a página. */
+  function version() {
+    return new Promise(res => {
+      const c = SW && navigator.serviceWorker.controller; if (!c) return res(null);
+      const ch = new MessageChannel(); const t = setTimeout(() => res(null), 1500);
+      ch.port1.onmessage = e => { clearTimeout(t); res(e.data); };
+      c.postMessage("version", [ch.port2]);
+    });
+  }
+  /* Procura uma versão nova. Devolve "new" (a instalar ou pronta), "latest", "offline" ou "unsupported". */
+  async function check() {
+    if (!SW || !reg) return "unsupported";
+    if (!navigator.onLine) return "offline";
+    try { await reg.update(); } catch (e) { return "offline"; }
+    const w = reg.installing || reg.waiting;
+    if (!w) return bar ? "new" : "latest";
+    await new Promise(res => { if (w.state === "activated") return res(); w.addEventListener("statechange", () => { if (w.state === "activated" || w.state === "redundant") res(); }); setTimeout(res, 15000); });
+    return "new";
+  }
+  Sala.updates = { check, version, supported: SW };
+  if (SW) {
+    let had = !!navigator.serviceWorker.controller; /* na primeira instalação não há nada a atualizar */
+    navigator.serviceWorker.addEventListener("controllerchange", () => { if (had) showUpdateBar(); had = true; });
+    addEventListener("load", () => navigator.serviceWorker.register("sw.js").then(r => { reg = r; }).catch(() => {}));
+    /* Sempre que se volta à app espreita se há versão nova (no máximo uma vez por minuto):
+       no iPhone, a app instalada costuma voltar do fundo sem recarregar, e sem isto nunca via as novidades. */
+    let lastCheck = Date.now();
+    const peek = () => { if (reg && Date.now() - lastCheck > 60 * 1000) { lastCheck = Date.now(); reg.update().catch(() => {}); } };
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) peek(); });
+    addEventListener("pageshow", peek); addEventListener("focus", peek);
+    setInterval(() => { if (reg && !document.hidden) { lastCheck = Date.now(); reg.update().catch(() => {}); } }, 60 * 60 * 1000);
   }
 })();

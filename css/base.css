@@ -205,6 +205,11 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 /* ---------- Avisos e efeitos ---------- */
 .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 20px);transform:translate(-50%,20px);opacity:0;pointer-events:none;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:500;max-width:calc(100vw - 32px);text-align:center;transition:opacity .2s,transform .2s;z-index:50}
 .toast.show{opacity:1;transform:translate(-50%,0)}
+.update-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 16px);z-index:55;display:flex;align-items:center;gap:10px;width:max-content;max-width:calc(100vw - 24px);padding:8px 8px 8px 16px;border-radius:14px;background:var(--ink);color:var(--bg);box-shadow:0 10px 30px rgba(0,0,0,.3);font-weight:500}
+.update-bar .icon-btn{background:transparent;border-color:transparent;color:var(--bg);width:36px;height:36px}
+.update-bar .btn{min-height:38px}
+:root.anim .update-bar{animation:bar-in .3s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes bar-in{from{transform:translate(-50%,30px);opacity:0}}
 #fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:60}
 
 :root.anim .view{animation:view-in .25s ease}

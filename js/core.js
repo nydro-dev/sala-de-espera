@@ -331,6 +331,23 @@
     const inp = el("input", { id: "set-name", class: "input", maxlength: "16", autocomplete: "nickname", placeholder: "Por exemplo: Rui", value: settings.name });
     inp.addEventListener("change", () => setSetting("name", inp.value.trim().slice(0, 16)));
     fName.appendChild(inp); box.appendChild(fName);
+    /* Versão e atualizações (preenchido pelo app.js) */
+    const U = Sala.updates;
+    if (U && U.supported) {
+      const fUpd = el("div", { class: "field" }, '<div><span class="lbl">Versão</span><small id="set-ver">…</small></div>');
+      const bUpd = el("button", { class: "btn", type: "button" }, "Procurar atualizações");
+      bUpd.onclick = async () => {
+        bUpd.disabled = true; bUpd.textContent = "A procurar…";
+        const r = await U.check();
+        bUpd.disabled = false; bUpd.textContent = "Procurar atualizações";
+        if (r === "latest") toast("Já tens a versão mais recente.");
+        else if (r === "offline") toast("Sem ligação à internet. Tenta mais tarde.");
+        else if (r === "new") modal.close(); /* a barra "Atualizar" já está à vista */
+        else toast("Este browser não deixa procurar atualizações.");
+      };
+      fUpd.appendChild(bUpd); box.appendChild(fUpd);
+      U.version().then(v => { const n = document.getElementById("set-ver"); if (n) n.textContent = v ? "Versão " + String(v).replace(/^sala-v/, "") : "Sem modo offline nesta página"; });
+    }
     modal.open({ title: "Definições", body: box, onClose: () => setSetting("name", inp.value.trim().slice(0, 16)), actions: [{ label: "Fechar", primary: true }] });
   }
 

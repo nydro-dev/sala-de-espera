@@ -1,5 +1,5 @@
-// Guarda a app para funcionar offline. Sobe a versão a cada publicação (sala-v8 → sala-v9).
-const VERSION = "sala-v8";
+// Guarda a app para funcionar offline. Sobe a versão a cada publicação (sala-v9 → sala-v10).
+const VERSION = "sala-v9";
 const CORE = [
   "./", "index.html", "manifest.webmanifest",
   "css/base.css", "js/core.js", "js/app.js", "js/games/sudoku.js", "js/games/minas.js",
@@ -24,6 +24,11 @@ self.addEventListener("activate", e => {
       .then(keys => Promise.all(keys.filter(k => k !== VERSION).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
+});
+
+// A página pergunta a versão em uso (aparece nas definições).
+self.addEventListener("message", e => {
+  if (e.data === "version" && e.ports && e.ports[0]) e.ports[0].postMessage(VERSION);
 });
 
 self.addEventListener("fetch", e => {
