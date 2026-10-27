@@ -12,8 +12,8 @@
   const BONUS = 1000, BONUS_T = 900; /* o bónus desce de 1000 a 0 em 15 minutos */
   const HIST = 60, LABEL = "3 cartas";
 
-  let S = null, els = null, drag = null, busy = false, autoT = 0, isDaily = false;
-  const KEY = () => isDaily ? "soli:dia" : "soli";
+  let S = null, els = null, drag = null, busy = false, autoT = 0, isDaily = false, duelD = null;
+  const KEY = () => duelD ? "soli:duelo" : isDaily ? "soli:dia" : "soli";
   let geo = null;
   const P = new Map(); /* posição de cada carta: c → { x, y, z } */
   const flipped = new Set();
@@ -27,7 +27,7 @@
   }
   function load() {
     const d = store.get(KEY(), null);
-    if (d && d.tab && d.found && (!isDaily || d.daily === daily.today())) { S = d; if (!S.hist) S.hist = []; return true; }
+    if (d && d.tab && d.found && (duelD ? d.bid === duelD.bid : !isDaily || d.daily === daily.today())) { S = d; if (!S.hist) S.hist = []; return true; }
     return false;
   }
   const save = () => { if (S) store.set(KEY(), S); };
@@ -40,11 +40,13 @@
 
   function newGame(practice) {
     clearTimeout(autoT); busy = false;
-    if (isDaily) { const ds = daily.today(); S = fresh(daily.rng("soli", ds)); S.daily = ds; if (practice === true) S.practice = true; }
-    else S = fresh();
+    if (duelD) { S = fresh(Sala.rng("soli:" + duelD.b)); S.seed = duelD.b; S.bid = duelD.bid; }
+    else if (isDaily) { const ds = daily.today(); S = fresh(daily.rng("soli", ds)); S.daily = ds; if (practice === true) S.practice = true; }
+    else { const seed = Sala.duel.newSeed(); S = fresh(Sala.rng("soli:" + seed)); S.seed = seed; }
     save();
-    if (els) { els.board.classList.remove("win"); build(); render(); msg(isDaily ? dailyMsg() : ""); }
+    if (els) { els.board.classList.remove("win"); build(); render(); msg(duelD ? duelMsg() : isDaily ? dailyMsg() : ""); }
   }
+  const duelMsg = () => S && S.over ? "Duelo terminado." : "Mesmo baralho de " + duelD.n + ". Sem saída? Termina e ficam os pontos.";
   function askNew() {
     if (!S || S.over || !S.moves) return newGame();
     modal.open({
@@ -64,14 +66,20 @@
     if (busy || S.over) return;
     if (!S.moves) { toast("Ainda não fizeste nenhuma jogada."); return; }
     modal.open({
-      title: "Terminar o desafio?",
-      body: "<p>Ficas com os " + fmtNum(S.score) + " pontos que tens agora" + (S.practice ? "" : " e é esse o resultado de hoje") + ". O bónus de tempo só conta se arrumares as cartas todas.</p>",
+      title: duelD ? "Terminar o duelo?" : "Terminar o desafio?",
+      body: "<p>Ficas com os " + fmtNum(S.score) + " pontos que tens agora" + (duelD ? " e é esse o teu resultado no duelo" : S.practice ? "" : " e é esse o resultado de hoje") + ". O bónus de tempo só conta se arrumares as cartas todas.</p>",
       actions: [{ label: "Continuar a jogar" }, { label: "Terminar", primary: true, onClick: () => { setTimeout(endDaily, 0); } }]
     });
   }
   function endDaily() {
     S.over = true; S.won = false; S.hist = []; busy = false; save(); render();
-    const found = S.found.reduce((a, f) => a + f.length, 0), dd = S.daily, practice = !!(S.practice || daily.result("soli", dd));
+    const found = S.found.reduce((a, f) => a + f.length, 0), dd = S.daily, practice = !!(dd && (S.practice || daily.result("soli", dd)));
+    if (duelD) {
+      msg(duelMsg());
+      finish({ game: "soli", diff: "d3", diffLabel: LABEL, score: S.score, time: S.time, won: false, duel: duelD, progress: found,
+        breakdown: [["Cartas nas fundações", found + " de 52"], ["Voltas ao baralho", String(S.passes)], ["Tempo", fmtTime(S.time)]] });
+      return;
+    }
     finish({
       game: "soli", diff: "d3", diffLabel: LABEL, title: "Desafio terminado", score: S.score, time: S.time, won: false, daily: dd, practice,
       breakdown: [["Cartas nas fundações", found + " de 52"], ["Voltas ao baralho", String(S.passes)], ["Desfazer usados", String(S.undos)], ["Tempo", fmtTime(S.time)]],
@@ -197,10 +205,12 @@
       els.board.querySelectorAll(".sl-card").forEach(n => n.style.setProperty("--d", ((P.get(+n.dataset.c) || {}).z || 0) % 13 * 45 + "ms"));
       els.board.classList.add("win");
     }
-    const dd = S.daily, practice = !!(dd && (S.practice || daily.result("soli", dd)));
+    const dd = S.daily, practice = !!(dd && (S.practice || daily.result("soli", dd))), dD = duelD;
+    if (dD) msg("Todas as cartas arrumadas! Duelo terminado.");
     setTimeout(() => {
       finish({
-        game: "soli", diff: "d3", diffLabel: LABEL, title: "Ganhaste", score: total, time: S.time, daily: dd, practice,
+        game: "soli", diff: "d3", diffLabel: LABEL, title: "Ganhaste", score: total, time: S.time, daily: dd, practice, duel: dD, progress: 52,
+        challenge: S.seed ? { d: "d3", b: S.seed, p: 52 } : null,
         breakdown: [["Pontos das jogadas", fmtNum(S.score)], ["Bónus de tempo", "+" + fmtNum(bonus)], ["Voltas ao baralho", String(S.passes)], ["Desfazer usados", String(S.undos)], ["Tempo", fmtTime(S.time)]],
         extra: { moves: S.moves },
         share: { lines: ["52 de 52 cartas arrumadas", "Tempo " + fmtTime(S.time)] },
@@ -213,8 +223,10 @@
 
   /* ---------- Ecrã ---------- */
   function mount(c, opts) {
-    const want = !!(opts && opts.daily);
-    if (want !== isDaily) { save(); S = null; isDaily = want; }
+    const wantDuel = (opts && opts.duel) || null, want = !wantDuel && !!(opts && opts.daily);
+    if (want !== isDaily || !!wantDuel !== !!duelD) { save(); S = null; isDaily = want; }
+    duelD = wantDuel;
+    if (duelD && S && S.bid !== duelD.bid) S = null;
     if (!S && !load()) newGame();
     els = c; busy = false; drag = null;
     c.stats.innerHTML = ui.stat("Pontos", "sl-score", "hl") + ui.stat("Tempo", "sl-time") + ui.stat("Jogadas", "sl-moves") + ui.stat("Recorde", "sl-best");
@@ -225,28 +237,30 @@
     auto.onclick = autoFinish;
     const row = el("div", { class: "casino-actions" });
     const bUndo = el("button", { class: "btn", type: "button", id: "sl-undob" }, ui.ICON.undo + "Desfazer"); bUndo.onclick = undo;
-    if (isDaily) {
+    if (isDaily || duelD) {
       const bEnd = el("button", { class: "btn", type: "button", id: "sl-end" }, '<svg viewBox="0 0 24 24"><path d="M5 21V4"/><path d="M5 4h12l-2.5 4L17 12H5"/></svg>Terminar'); bEnd.onclick = askEnd;
       const bAgain = el("button", { class: "btn", type: "button", id: "sl-again", hidden: true }, ui.ICON.undo + "Repetir"); bAgain.onclick = () => newGame(true);
       const bNorm = el("button", { class: "btn", type: "button" }, ui.ICON.plus + "Jogo normal"); bNorm.onclick = () => Sala.go("soli");
-      row.append(bUndo, bEnd, bAgain, bNorm);
+      if (duelD) row.append(bUndo, bEnd, bNorm); else row.append(bUndo, bEnd, bAgain, bNorm);
     } else {
       const bNew = el("button", { class: "btn", type: "button" }, ui.ICON.plus + "Novo jogo"); bNew.onclick = askNew;
       row.append(bUndo, bNew);
     }
     const tip = el("p", { class: "hint" }, '<span class="for-touch">Toca numa carta para a mandar para o melhor sítio, ou arrasta-a.</span><span class="for-mouse">Clica numa carta para a mandar para o melhor sítio, ou arrasta-a. <kbd>Espaço</kbd> vira o baralho, <kbd>Ctrl</kbd>+<kbd>Z</kbd> desfaz.</span>');
-    if (isDaily) c.controls.append(el("div", { class: "mode-tag" }, ui.ICON.cal + "Desafio de " + esc(daily.label(S.daily)) + " · 3 cartas"));
+    if (duelD) c.controls.append(Sala.duel.tag(duelD));
+    else if (isDaily) c.controls.append(el("div", { class: "mode-tag" }, ui.ICON.cal + "Desafio de " + esc(daily.label(S.daily)) + " · 3 cartas"));
     c.controls.append(auto, row, tip);
     board.addEventListener("pointerdown", down);
     board.addEventListener("pointermove", moveDrag);
     board.addEventListener("pointerup", up);
     board.addEventListener("pointercancel", cancelDrag);
     build(); render();
-    if (isDaily) msg(dailyMsg());
+    if (duelD) msg(duelMsg());
+    else if (isDaily) msg(dailyMsg());
     else if (S.over) msg(S.won ? "Jogo ganho. Começa outro quando quiseres." : "");
     addEventListener("resize", onResize);
   }
-  function unmount() { clearTimeout(autoT); busy = false; save(); removeEventListener("resize", onResize); els = null; drag = null; if (isDaily) { S = null; isDaily = false; } }
+  function unmount() { clearTimeout(autoT); busy = false; save(); removeEventListener("resize", onResize); els = null; drag = null; if (isDaily || duelD) { S = null; isDaily = false; duelD = null; } }
   function onResize() { if (els) { layout(); render(); } }
   function msg(t, bad) { const m = document.getElementById("sl-msg"); if (m) { m.textContent = t; m.className = "msg" + (bad ? " bad" : ""); } }
 
@@ -391,6 +405,7 @@
       "<h4>Pontuação</h4><ul><li>+10 por carta nas fundações; +5 por carta do baralho levada para as colunas; +5 por cada carta tapada que se vira.</li>" +
       "<li>−15 se uma carta sair das fundações; −20 por cada volta ao baralho; −10 por cada desfazer.</li>" +
       "<li>Ao ganhar soma-se o bónus de tempo: 1000 pontos, que descem até 0 aos 15 minutos.</li><li>Só os jogos ganhos entram no top 10.</li></ul>" +
+      "<h4>Duelo</h4><p>Depois de ganhares, <b>Desafiar</b> cria um link com o mesmo baralho e o teu resultado. No duelo, como no desafio do dia, dá para <b>Terminar</b> e ficar com os pontos feitos. Ganha quem tiver mais pontos; em empate, quem arrumou mais cartas.</p>" +
       "<h4>Desafio do dia</h4><p>O mesmo baralho para toda a gente nesse dia. Como nem todos os baralhos têm solução, podes <b>Terminar</b> quando não houver saída e ficas com os pontos das jogadas. Só a primeira tentativa conta.</p>";
   }
 
@@ -400,6 +415,9 @@
     art: '<svg viewBox="0 0 36 36"><rect x="5" y="4" width="18" height="25" rx="3" fill="var(--cover)" transform="rotate(-10 14 16)"/><rect x="13" y="7" width="18" height="25" rx="3" fill="var(--surface)" stroke="var(--ink)" stroke-width="1.5"/><path d="M22 14c-2.5 3-4 4.4-4 6a2 2 0 0 0 4 .3 2 2 0 0 0 4-.3c0-1.6-1.5-3-4-6z" fill="var(--ink)"/></svg>',
     lastDiff, emptyText: "Ainda não há jogos ganhos.<br>O primeiro é teu.",
     daily: true, dailyLost: "Terminado",
+    duel: true, duelTime: true,
+    duelOk: D => D.d === "d3" && /^[a-z0-9]{4,20}$/.test(D.b),
+    duelText: r => r.w ? fmtTime(r.t) : r.p + " de 52 cartas",
     dailyPlaying() { const d = store.get("soli:dia", null); return !!(d && d.daily === daily.today() && !d.over && d.moves && !d.practice); },
     meta() {
       const out = []; if (!S) load();

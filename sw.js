@@ -1,11 +1,12 @@
-// Guarda a app para funcionar offline. Sobe a versão a cada publicação (sala-v12 → sala-v13).
-const VERSION = "sala-v12";
+// Guarda a app para funcionar offline. Sobe a versão a cada publicação (sala-v13 → sala-v14).
+const VERSION = "sala-v13";
 const CORE = [
   "./", "index.html", "manifest.webmanifest",
   "css/base.css", "js/core.js", "js/menu-art.js", "js/app.js", "js/games/sudoku.js", "js/games/minas.js",
-  "js/games/g2048.js", "js/games/palavras.js", "js/data/validas.js", "js/data/solucoes.js",
+  "js/games/dobra.js", "js/games/palavras.js", "js/data/validas.js", "js/data/solucoes.js",
   "js/games/casino.js", "js/games/blackjack.js", "js/games/roleta.js",
   "js/games/solitario.js", "js/games/cobra.js",
+  "fonts/roboto-400.woff2", "fonts/roboto-500.woff2", "fonts/roboto-700.woff2", "fonts/roboto-900.woff2",
   "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png"
 ];
 
@@ -56,15 +57,5 @@ self.addEventListener("fetch", e => {
       }))
     );
     return;
-  }
-
-  // Fontes do Google: cópia guardada primeiro, rede depois.
-  if (url.hostname.endsWith("googleapis.com") || url.hostname.endsWith("gstatic.com")) {
-    e.respondWith(
-      caches.match(req).then(hit => hit || fetch(req).then(res => {
-        if (res.ok || res.type === "opaque") { const copy = res.clone(); caches.open(VERSION).then(c => c.put(req, copy)); }
-        return res;
-      }))
-    );
   }
 });

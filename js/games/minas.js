@@ -12,8 +12,8 @@
   const FLAG = '<svg viewBox="0 0 20 20"><path d="M5.5 2.5v15" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"/><path d="M6.5 3h9.5l-2.6 3.8L16 10.6H6.5z" fill="var(--yellow)" stroke="var(--ink)" stroke-width="1.2" stroke-linejoin="round"/></svg>';
   const MINE = '<svg viewBox="0 0 20 20"><path d="M10 1.5v17M1.5 10h17M4 4l12 12M16 4L4 16" stroke="var(--ink)" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="10" r="5.6" fill="var(--ink)"/><circle cx="8.2" cy="8.2" r="1.5" fill="var(--surface)"/></svg>';
 
-  let M = null, els = null, cur = -1, kbd = false, lp = null, lpFired = false, lastTouch = 0, isDaily = false;
-  const KEY = () => isDaily ? "minas:dia" : "minas";
+  let M = null, els = null, cur = -1, kbd = false, lp = null, lpFired = false, lastTouch = 0, isDaily = false, duelD = null;
+  const KEY = () => duelD ? "minas:duelo" : isDaily ? "minas:dia" : "minas";
 
   /* ---------- Estado ---------- */
   function fresh(diff) {
@@ -22,21 +22,24 @@
     const narrow = innerWidth < 700 && innerHeight > innerWidth;
     const rot = c.w > c.h && narrow;
     const w = rot ? c.h : c.w, h = rot ? c.w : c.h, n = w * h;
-    return { diff, w, h, m: c.m, mine: null, num: null, open: Array(n).fill(0), flag: Array(n).fill(0), state: "ready", time: 0, boom: -1, flagMode: false };
+    return { diff, w, h, rot, seed: Sala.duel.newSeed(), m: c.m, mine: null, num: null, open: Array(n).fill(0), flag: Array(n).fill(0), state: "ready", time: 0, boom: -1, flagMode: false };
   }
   function load() {
     const d = store.get(KEY(), null);
+    if (duelD) { if (d && d.bid === duelD.bid && d.open) { M = d; return true; } return false; }
     if (isDaily) { if (d && d.daily === daily.today() && d.open) { M = d; return true; } return false; }
     if (d && d.state === "play" && d.open && d.open.length === d.w * d.h) { M = d; return true; }
     return false;
   }
   /* O desafio do dia fica guardado até ao fim do dia (também acabado, para se ver o tabuleiro). */
-  const save = () => { if (isDaily) { if (M) store.set(KEY(), M); return; } if (M && M.state === "play") store.set("minas", M); else store.del("minas"); };
+  const save = () => { if (isDaily || duelD) { if (M) store.set(KEY(), M); return; } if (M && M.state === "play") store.set("minas", M); else store.del("minas"); };
   const lastDiff = () => store.get("minasDiff", "medium");
 
   function newGame(diff, practice) {
     const keepMode = M ? M.flagMode : false;
-    if (isDaily) {
+    if (duelD) {
+      M = duelBoard(duelD);
+    } else if (isDaily) {
       M = dailyBoard(); if (practice) M.practice = true;
     } else {
       M = fresh(diff || (M && M.diff) || lastDiff());
@@ -80,6 +83,19 @@
     M = prev;
     return B;
   }
+  /* Duelo: as minas saem da semente e da primeira casa de quem desafiou, e essa zona já vem aberta.
+     O tabuleiro é guardado "deitado" (como no PC); no telemóvel ao alto aparece transposto, que é o mesmo campo. */
+  function duelBoard(D) {
+    const [seed, first] = D.b.split(".");
+    const B = fresh(D.d), prev = M; M = B;
+    B.seed = seed; B.bid = D.bid;
+    plant(toDisp(+first));
+    const q = [toDisp(+first)];
+    while (q.length) { const x = q.shift(); if (B.open[x]) continue; B.open[x] = 1; if (!B.num[x]) for (const j of nb(x)) if (!B.open[j]) q.push(j); }
+    B.start = toDisp(+first);
+    M = prev;
+    return B;
+  }
   const dailyMsg = () => {
     const r = daily.result("minas");
     if (M && M.practice && M.state !== "won" && M.state !== "over") return "Repetição: esta não conta.";
@@ -96,18 +112,27 @@
     });
   }
 
+  /* Casas no tabuleiro "deitado" (canónico) e no que aparece no ecrã (transposto se rodou). */
+  const CW = () => CFG[M.diff].w;
+  const toDisp = ci => M.rot ? (ci % CW()) * M.w + ((ci / CW()) | 0) : ci;
+  const toCanon = di => M.rot ? (di % M.w) * CW() + ((di / M.w) | 0) : di;
   const nb = i => { const { w, h } = M, x = i % w, y = (i / w) | 0, r = []; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { if (!dx && !dy) continue; const nx = x + dx, ny = y + dy; if (nx >= 0 && ny >= 0 && nx < w && ny < h) r.push(ny * w + nx); } return r; };
+  /* Minas postas pela semente do jogo, longe da primeira casa: o mesmo campo dá para mandar num duelo. */
   function plant(safe) {
-    const n = M.w * M.h, ban = new Set([safe, ...nb(safe)]);
+    const n = M.w * M.h, ban = new Set([safe, ...nb(safe)].map(toCanon));
+    if (!M.seed) M.seed = Sala.duel.newSeed();
+    M.first = toCanon(safe);
     M.mine = Array(n).fill(0);
-    shuffle([...Array(n).keys()].filter(i => !ban.has(i))).slice(0, M.m).forEach(i => M.mine[i] = 1);
+    shuffle([...Array(n).keys()].filter(i => !ban.has(i)), Sala.rng("minas:" + M.seed)).slice(0, M.m).forEach(ci => M.mine[toDisp(ci)] = 1);
     M.num = M.mine.map((_, i) => nb(i).reduce((s, j) => s + M.mine[j], 0));
   }
 
   /* ---------- Ecrã ---------- */
   function mount(c, opts) {
-    const want = !!(opts && opts.daily);
-    if (want !== isDaily) { save(); M = null; isDaily = want; }
+    const wantDuel = (opts && opts.duel) || null, want = !wantDuel && !!(opts && opts.daily);
+    if (want !== isDaily || !!wantDuel !== !!duelD) { save(); M = null; isDaily = want; }
+    duelD = wantDuel;
+    if (duelD && M && M.bid !== duelD.bid) M = null;
     if (!M && !load()) newGame(lastDiff());
     els = c; cur = -1; kbd = false;
     c.stats.innerHTML = ui.stat("Minas", "m-left", "hl") + ui.stat("Tempo", "m-time") + ui.stat("Recorde", "m-best");
@@ -116,10 +141,10 @@
     scroll.appendChild(grid);
     c.board.append(scroll, el("div", { class: "msg", id: "m-msg", role: "status" }));
 
-    const diffSeg = isDaily
+    const diffSeg = duelD ? Sala.duel.tag(duelD) : isDaily
       ? el("div", { class: "mode-tag" }, ui.ICON.cal + "Desafio de " + esc(daily.label(M.daily)) + " · Médio")
       : ui.seg(DIFFS, M.diff, id => askNew(id), "Dificuldade");
-    if (!isDaily) { diffSeg.id = "m-diff"; diffSeg.classList.add("wrap"); }
+    if (!isDaily && !duelD) { diffSeg.id = "m-diff"; diffSeg.classList.add("wrap"); }
     const mode = el("div", { class: "minas-mode", role: "group", "aria-label": "Modo do toque" });
     const bOpen = el("button", { class: "btn", type: "button", id: "m-mopen" }, ui.ICON.pick + "Abrir");
     const bFlag = el("button", { class: "btn", type: "button", id: "m-mflag" }, ui.ICON.flag + "Bandeira");
@@ -127,8 +152,12 @@
     bFlag.onclick = () => { M.flagMode = true; sound.tap(); render(); };
     mode.append(bOpen, bFlag);
     const top = el("div", { class: "row" });
-    const bNew = el("button", { class: "btn", type: "button" }, ui.ICON.plus + (isDaily ? "Jogo normal" : "Novo jogo"));
-    bNew.onclick = () => isDaily ? Sala.go("minas") : askNew(M.diff);
+    const bNew = el("button", { class: "btn", type: "button" }, ui.ICON.plus + (isDaily || duelD ? "Jogo normal" : "Novo jogo"));
+    bNew.onclick = () => isDaily || duelD ? Sala.go("minas") : askNew(M.diff);
+    /* Depois de rebentar num jogo normal também dá para desafiar alguém com o mesmo campo. */
+    const bDuel = el("button", { class: "btn", type: "button", id: "m-duel", hidden: true }, '<svg viewBox="0 0 24 24"><path d="M14.5 17.5L3 6V3h3l11.5 11.5"/><path d="M13 19l6-6M16 16l4 4M19 21l2-2"/></svg>Desafiar');
+    bDuel.onclick = () => Sala.duel.challenge("minas", { d: M.diff, b: M.seed + "." + M.first, s: 0, t: M.time, p: openedCount(), w: 0 });
+    top.append(bDuel);
     const bAgain = el("button", { class: "btn", type: "button", id: "m-again", hidden: true }, ui.ICON.undo + "Repetir (não conta)");
     bAgain.onclick = () => newGame(DAILY_DIFF, true);
     if (isDaily) top.append(bAgain);
@@ -155,13 +184,14 @@
     ["touchend", "touchmove", "touchcancel"].forEach(t => grid.addEventListener(t, () => clearTimeout(lp), { passive: true }));
 
     buildGrid();
-    if (isDaily) msg(dailyMsg());
+    if (duelD) msg(M.state === "won" || M.state === "over" ? "Duelo terminado." : "Mesmo campo de " + duelD.n + ". Começa a partir da zona já aberta.");
+    else if (isDaily) msg(dailyMsg());
     else if (M.state === "won") msg("Campo limpo.");
     render();
     toStart();
     addEventListener("resize", sizeGrid);
   }
-  function unmount() { save(); removeEventListener("resize", sizeGrid); if (els) els.board.parentNode.classList.remove("wide-board"); els = null; clearTimeout(lp); if (isDaily) { M = null; isDaily = false; } }
+  function unmount() { save(); removeEventListener("resize", sizeGrid); if (els) els.board.parentNode.classList.remove("wide-board"); els = null; clearTimeout(lp); if (isDaily || duelD) { M = null; isDaily = false; duelD = null; } }
   function syncDiff() { const s = document.getElementById("m-diff"); if (s) s.querySelectorAll("button").forEach((b, k) => b.setAttribute("aria-pressed", String(DIFFS[k].id === M.diff))); }
   function msg(t, bad) { const m = document.getElementById("m-msg"); if (m) { m.textContent = t; m.className = "msg" + (bad ? " bad" : ""); } }
 
@@ -218,6 +248,7 @@
     set("m-left", M.m - f); set("m-time", fmtTime(M.time));
     const b = ranking.best("minas", isDaily ? "dia" : M.diff); set("m-best", b ? fmtNum(b.score) : "—");
     const ag = document.getElementById("m-again"); if (ag) ag.hidden = !(M.state === "won" || M.state === "over");
+    const bd = document.getElementById("m-duel"); if (bd) bd.hidden = !(M.state === "over" && !M.daily && !duelD && M.seed && M.first != null);
     const bo = document.getElementById("m-mopen"), bf = document.getElementById("m-mflag");
     bo.classList.toggle("on", !M.flagMode); bo.setAttribute("aria-pressed", String(!M.flagMode));
     bf.classList.toggle("on", !!M.flagMode); bf.setAttribute("aria-pressed", String(!!M.flagMode));
@@ -267,6 +298,13 @@
     if (motion() && els) { const sc = els.board.querySelector(".mscroll"); sc.classList.remove("shake"); void sc.offsetWidth; sc.classList.add("shake"); }
     msg("Boom. Ao fim de " + fmtTime(M.time) + ". Nova volta?", true);
     const dd = M.daily;
+    if (duelD) {
+      const opened = openedCount(), total = M.w * M.h - M.m, dD = duelD;
+      msg("Boom. Duelo terminado.", true);
+      setTimeout(() => finish({ game: "minas", diff: M.diff, diffLabel: DIFFS.find(d => d.id === M.diff).label, score: 0, time: M.time, won: false, duel: dD, progress: opened,
+        breakdown: [["Casas abertas", fmtNum(opened) + " de " + fmtNum(total)], ["Tempo", fmtTime(M.time)]] }), motion() ? 1100 : 200);
+      return;
+    }
     if (!dd) { ST.record("minas", M.diff, { won: false, time: M.time }); return; }
     /* No desafio do dia, a derrota também se regista e partilha. */
     const practice = !!(M.practice || daily.result("minas", dd));
@@ -281,6 +319,7 @@
       if (els) msg(dailyMsg(), true);
     }, motion() ? 1100 : 200);
   }
+  const openedCount = () => M.open.reduce((a, b) => a + b, 0);
   function checkWin() {
     const n = M.w * M.h; let open = 0; for (let i = 0; i < n; i++) open += M.open[i];
     if (open !== n - M.m) return false;
@@ -291,10 +330,11 @@
     const mult = t <= par ? 1 + (par - t) / par : Math.max(0.25, par / t);
     const total = Math.round(base * mult), dl = DIFFS.find(d => d.id === M.diff).label;
     msg("Campo limpo em " + fmtTime(M.time) + ".");
-    const dd = M.daily, practice = !!(dd && (M.practice || daily.result("minas", dd)));
+    const dd = M.daily, practice = !!(dd && (M.practice || daily.result("minas", dd))), dD = duelD;
+    const ch = M.seed && M.first != null ? { d: M.diff, b: M.seed + "." + M.first, p: n - M.m } : null;
     setTimeout(() => {
       finish({
-        game: "minas", diff: M.diff, diffLabel: dl, title: "Campo limpo", score: total, time: M.time, daily: dd, practice,
+        game: "minas", diff: M.diff, diffLabel: dl, title: "Campo limpo", score: total, time: M.time, daily: dd, practice, duel: dD, progress: n - M.m, challenge: ch,
         breakdown: [["Base (" + dl + ")", fmtNum(base)], ["Tempo " + fmtTime(M.time) + " (referência " + fmtTime(par) + ")", "× " + mult.toFixed(2).replace(".", ",")]],
         share: { lines: ["Campo limpo em " + fmtTime(M.time)] },
         newLabel: dd ? "Jogo normal" : "Novo jogo",
@@ -338,6 +378,7 @@
       "<li>Base: 250 no Iniciante, 500 no Fácil, 2000 no Médio, 5000 no Difícil e 9000 no Extremo.</li>" +
       "<li>Bónus de rapidez: o tempo de referência é 30 segundos, 1, 4, 10 e 18 minutos. Acabar em metade desse tempo vale ×1,5; no dobro, ×0,5 (nunca menos de ×0,25).</li>" +
       "<li>Só as vitórias contam para o ranking.</li></ul>" +
+      "<h4>Duelo</h4><p>No fim de um jogo (ganho ou perdido), <b>Desafiar</b> cria um link com o mesmo campo e o teu resultado. Quem o abrir começa com a zona que tu abriste na primeira jogada. Ganha quem tiver mais pontos; se ambos rebentarem, quem abriu mais casas.</p>" +
       "<h4>Desafio do dia</h4><p>Um campo Médio (16×16, 40 minas) igual para toda a gente nesse dia, com uma zona já aberta para começar. O relógio só arranca na primeira jogada. Só a primeira tentativa conta, e rebentar também fica registado.</p>";
   }
 
@@ -347,6 +388,9 @@
     art: '<svg viewBox="0 0 36 36"><rect x="2" y="2" width="32" height="32" rx="6" fill="var(--cover)"/><rect x="2" y="18" width="16" height="16" rx="0" fill="var(--open)"/><path d="M8 3v13M3 9.5h11M4.5 5l7 7M11.5 5l-7 7" stroke="var(--ink)" stroke-width="1.6" stroke-linecap="round" transform="translate(16 0)"/><circle cx="24" cy="9.5" r="3.6" fill="var(--ink)"/><path d="M7 21.5v9" stroke="var(--ink)" stroke-width="1.6" stroke-linecap="round"/><path d="M7.6 22h6l-1.6 2.2 1.6 2.3h-6z" fill="var(--yellow)" stroke="var(--ink)" stroke-width=".9"/><text x="27" y="31" font-size="11" font-weight="900" text-anchor="middle" fill="var(--blue-ink)" font-family="Roboto,sans-serif">3</text></svg>',
     lastDiff,
     daily: true, dailyLost: "Rebentou",
+    duel: true, duelTime: true,
+    duelOk(D) { const c = CFG[D.d], m = /^([a-z0-9]{4,20})\.(\d{1,4})$/.exec(D.b); return !!(c && m && +m[2] < c.w * c.h); },
+    duelText: r => r.w ? fmtTime(r.t) : "💥 " + fmtNum(r.p) + " casas abertas",
     dailyPlaying() { const d = store.get("minas:dia", null); return !!(d && d.daily === daily.today() && d.state === "play" && !d.practice); },
     meta() {
       const out = [];

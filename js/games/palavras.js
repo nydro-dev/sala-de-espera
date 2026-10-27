@@ -20,6 +20,9 @@
 
   /* ---------- Estado ---------- */
   let P = null, els = null, typing = "", busy = false;
+  /* Duelo: a palavra vem no link (só se lê depois de descodificado). */
+  function freshDuel(D) { return { mode: "duelo", bid: D.bid, word: SHOWN.get(key(D.b)), guesses: [], done: false, won: false, time: 0 }; }
+  let duelD = null;
   function freshGame(mode) {
     if (mode === "dia") { const d = today(); return { mode, date: d, n: dayNumber(d), word: dailyWord(d), guesses: [], done: false, won: false, time: 0 }; }
     return { mode, word: SOL[Math.random() * SOL.length | 0], guesses: [], done: false, won: false, time: 0 };
@@ -82,6 +85,7 @@
   const later = (f, ms) => timers.push(setTimeout(f, ms));
   function endGame(won) {
     const g = G(), st = P.stats[g.mode];
+    if (g.mode === "duelo") { g.done = true; g.won = won; g.points = won ? POINTS[g.guesses.length - 1] : 0; return; }
     g.done = true; g.won = won; st.played++;
     if (won) {
       st.won++; st.dist[g.guesses.length - 1]++;
@@ -99,14 +103,20 @@
     return Math.round(base * (1 + bonus));
   }
   function result(won) {
-    const g = G(), dl = DIFFS.find(d => d.id === g.mode).label;
+    const g = G(), dl = (DIFFS.find(d => d.id === g.mode) || DIFFS[1]).label;
     renderAll();
+    if (g.mode === "duelo") {
+      finish({ game: "palavras", diff: "livre", diffLabel: "Jogo livre", score: g.points, time: g.time, won, duel: duelD,
+        breakdown: [["Palavra", g.word.toUpperCase()], ["Tentativas", (won ? g.guesses.length : "X") + " de " + TRIES], ["Tempo", fmtTime(g.time)]] });
+      return;
+    }
     if (!won) { msg("A palavra era " + g.word.toUpperCase() + ".", true); return; }
     const base = POINTS[g.guesses.length - 1];
     finish({
       game: "palavras", diff: g.mode, diffLabel: dl, title: g.mode === "dia" ? "Palavra do dia nº " + g.n : "Acertaste", score: g.points, time: g.time,
       breakdown: [["Tentativas", g.guesses.length + " de " + TRIES], ["Pontos pela tentativa", fmtNum(base)]].concat(g.mode === "dia" ? [["Sequência de " + P.streak + " dia" + (P.streak > 1 ? "s" : ""), "+" + fmtNum(g.points - base)]] : []),
       share: shareInfo(g),
+      challenge: g.mode === "livre" ? { d: "livre", b: g.word } : null,
       newLabel: g.mode === "dia" ? "Jogo livre" : "Outra palavra",
       onNew: () => { if (g.mode === "dia") Sala.go("palavras"); else newFree(); }
     });
@@ -141,11 +151,13 @@
   /* A palavra do dia abre-se pelo desafio do dia (#/palavras/dia); o cartão do menu abre o jogo livre. */
   function mount(c, opts) {
     if (!P) load(); else if (P.games.dia.date !== today()) load();
-    P.mode = opts && opts.daily ? "dia" : "livre"; save();
+    duelD = (opts && opts.duel) || null;
+    if (duelD && (!P.games.duelo || P.games.duelo.bid !== duelD.bid)) P.games.duelo = freshDuel(duelD);
+    P.mode = duelD ? "duelo" : opts && opts.daily ? "dia" : "livre"; save();
     els = c; typing = ""; busy = false;
     c.stats.innerHTML = ui.stat("Sequência", "w-streak", "hl") + ui.stat("Melhor", "w-bstreak") + ui.stat("Vitórias", "w-wins") + ui.stat("Recorde", "w-best");
     c.board.append(el("div", { class: "w-grid", id: "w-grid", "aria-label": "Tentativas" }), el("div", { class: "msg", id: "w-msg", role: "status" }));
-    const seg = P.mode === "dia"
+    const seg = duelD ? Sala.duel.tag(duelD) : P.mode === "dia"
       ? el("div", { class: "mode-tag" }, ui.ICON.cal + "Palavra do dia nº " + P.games.dia.n + " · " + Sala.daily.label(P.games.dia.date))
       : el("div", { class: "mode-tag" }, "Jogo livre · palavras ao acaso");
     const kb = el("div", { class: "w-kb", id: "w-kb", "aria-label": "Teclado" });
@@ -164,14 +176,17 @@
     const actions = el("div", { class: "casino-actions", id: "w-actions" });
     const bShare = el("button", { class: "btn", type: "button", id: "w-share" }, ui.ICON.share + "Partilhar"); bShare.onclick = share;
     const bNew = el("button", { class: "btn", type: "button", id: "w-new" }, ui.ICON.plus + "Outra palavra"); bNew.onclick = () => { const g = P.games.livre; if (!g.done && g.guesses.length) giveUp(); newFree(); };
-    const bOther = el("button", { class: "btn", type: "button" }, P.mode === "dia" ? ui.ICON.plus + "Jogo livre" : ui.ICON.cal + "Palavra do dia");
-    bOther.onclick = () => Sala.go(P.mode === "dia" ? "palavras" : "palavras/dia");
-    actions.append(bShare, bNew, bOther);
+    const bOther = el("button", { class: "btn", type: "button" }, P.mode !== "livre" ? ui.ICON.plus + "Jogo livre" : ui.ICON.cal + "Palavra do dia");
+    bOther.onclick = () => Sala.go(P.mode !== "livre" ? "palavras" : "palavras/dia");
+    /* Desafiar com a mesma palavra (também depois de falhar). */
+    const bDuel = el("button", { class: "btn", type: "button", id: "w-duel", hidden: true }, '<svg viewBox="0 0 24 24"><path d="M14.5 17.5L3 6V3h3l11.5 11.5"/><path d="M13 19l6-6M16 16l4 4M19 21l2-2"/></svg>Desafiar');
+    bDuel.onclick = () => { const g = P.games.livre; if (g.done) Sala.duel.challenge("palavras", { d: "livre", b: g.word, s: g.points || 0, t: g.time, p: 0, w: g.won }); };
+    if (duelD) actions.append(bOther); else actions.append(bShare, bDuel, bNew, bOther);
     const tip = el("p", { class: "hint", id: "w-tip" });
     c.controls.append(seg, kb, actions, tip);
     buildGrid(); renderAll();
   }
-  function unmount() { save(); timers.forEach(clearTimeout); timers = []; els = null; }
+  function unmount() { save(); timers.forEach(clearTimeout); timers = []; els = null; duelD = null; }
   function msg(t, bad) { const m = document.getElementById("w-msg"); if (m) { m.textContent = t; m.className = "msg" + (bad ? " bad" : ""); } }
 
   function buildGrid() {
@@ -196,15 +211,17 @@
     if (!els) return;
     for (let r = 0; r < TRIES; r++) renderRow(r);
     renderKeys();
-    const g = G(), st = P.stats[g.mode];
+    const g = G(), st = P.stats[g.mode] || P.stats.livre;
     const set = (id, v) => { const n = document.getElementById(id); if (n) n.textContent = v; };
     set("w-streak", P.streak + (P.streak === 1 ? " dia" : " dias")); set("w-bstreak", P.bestStreak);
     set("w-wins", st.played ? Math.round(st.won / st.played * 100) + " %" : "—");
     const b = ranking.best("palavras", g.mode); set("w-best", b ? fmtNum(b.score) : "—");
-    document.getElementById("w-share").disabled = !g.done;
-    document.getElementById("w-new").hidden = g.mode !== "livre";
+    const sh = document.getElementById("w-share"); if (sh) sh.disabled = !g.done;
+    const nw = document.getElementById("w-new"); if (nw) nw.hidden = g.mode !== "livre";
+    const du = document.getElementById("w-duel"); if (du) du.hidden = !(g.mode === "livre" && g.done);
     const tip = document.getElementById("w-tip");
-    if (g.mode === "dia" && g.done) tip.textContent = "Palavra do dia nº " + g.n + " feita. A próxima chega à meia-noite; até lá, há o jogo livre.";
+    if (g.mode === "duelo") tip.textContent = g.done ? "Duelo terminado." : "A mesma palavra que " + duelD.n + " teve de descobrir. Os acentos e o ç aparecem sozinhos.";
+    else if (g.mode === "dia" && g.done) tip.textContent = "Palavra do dia nº " + g.n + " feita. A próxima chega à meia-noite; até lá, há o jogo livre.";
     else if (g.mode === "dia") tip.textContent = "Palavra do dia nº " + g.n + ". Os acentos e o ç aparecem sozinhos.";
     else tip.textContent = "Jogo livre: palavras ao acaso, sem contar para a sequência. Os acentos e o ç aparecem sozinhos.";
     if (g.done && !g.won) msg("A palavra era " + g.word.toUpperCase() + ".", true);
@@ -257,6 +274,7 @@
       "<h4>Cores</h4><ul><li><b>Azul:</b> a letra está na palavra e no sítio certo.</li><li><b>Amarelo:</b> a letra está na palavra, mas noutro sítio.</li><li><b>Cinzento:</b> a letra não está na palavra (ou já apareceu todas as vezes que aparece).</li></ul>" +
       "<h4>Acentos</h4><p>Não precisas de os escrever: \"acao\" conta como \"ação\" e \"c\" serve para \"ç\". As palavras seguem o Acordo Ortográfico de 1990 e não têm k, w nem y.</p>" +
       "<h4>Modos</h4><ul><li><b>Palavra do dia:</b> a mesma palavra para toda a gente, uma por dia, com sequência de dias seguidos. Está no desafio do dia, no topo do menu.</li><li><b>Jogo livre:</b> palavras ao acaso, quantas quiseres. É o que abre o cartão Palavras.</li></ul>" +
+      "<h4>Duelo</h4><p>No fim de um jogo livre, <b>Desafiar</b> manda um link com a mesma palavra (escondida) e o teu resultado. Ganha quem acertar em menos tentativas; em empate, quem foi mais rápido.</p>" +
       "<h4>Controlos</h4><ul><li>Teclado do ecrã ou do computador: letras, <kbd>Enter</kbd> para enviar, <kbd>⌫</kbd> para apagar.</li><li><b>Partilhar</b> envia uma imagem e os quadrados coloridos, sem revelar a palavra.</li></ul>" +
       "<h4>Pontuação</h4><ul><li>1000, 800, 600, 400, 250 ou 150 pontos se acertares à 1.ª, 2.ª, 3.ª, 4.ª, 5.ª ou 6.ª tentativa.</li><li>Na palavra do dia, cada dia seguido dá +10 %, até ao dobro.</li><li>Cada modo tem o seu top 10.</li></ul>" +
       "<h4>Créditos</h4><p>Palavras do dicionário pt_PT do Projecto Natura (Universidade do Minho, MPL 1.1), escolhidas com as frequências de legendas em português europeu do OpenSubtitles compiladas por Hermit Dave (CC BY-SA 4.0).</p>";
@@ -266,7 +284,11 @@
     id: "palavras", name: "Palavras", ready: true, diffs: DIFFS,
     desc: "Descobrir palavras de cinco letras em seis tentativas.",
     art: '<svg viewBox="0 0 36 36"><rect x="2" y="11" width="9.5" height="14" rx="2" fill="var(--blue)"/><rect x="13.25" y="11" width="9.5" height="14" rx="2" fill="var(--yellow)"/><rect x="24.5" y="11" width="9.5" height="14" rx="2" fill="var(--cover)"/><text x="6.75" y="21.5" font-size="8" font-weight="900" text-anchor="middle" fill="var(--on-accent)" font-family="Roboto,sans-serif">P</text><text x="18" y="21.5" font-size="8" font-weight="900" text-anchor="middle" fill="var(--on-accent)" font-family="Roboto,sans-serif">T</text></svg>',
-    lastDiff: () => (P && P.mode) || "livre",
+    lastDiff: () => (P && P.mode !== "duelo" && P.mode) || "livre",
+    duel: true, duelTime: true,
+    duelOk: D => D.d === "livre" && typeof D.b === "string" && D.b.length === LEN && SHOWN.has(key(D.b)),
+    duelLabel: () => "Jogo livre",
+    duelText: r => r.w ? (POINTS.indexOf(r.s) + 1 || "?") + "/" + TRIES + " · " + fmtTime(r.t) : "X/" + TRIES,
     daily: true, dailyLost: "Falhou", dailyTitle: "Palavra do dia",
     dailyPlaying() { if (!P || P.games.dia.date !== today()) load(); const d = P.games.dia; return !d.done && d.guesses.length > 0; },
     /* O resultado do dia vem do próprio jogo (as Palavras já tinham a palavra do dia antes do desafio). */

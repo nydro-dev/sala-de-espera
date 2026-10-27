@@ -132,6 +132,32 @@
     return 4;
   }
 
+  /* Resolve um tabuleiro (casa com menos hipóteses primeiro). */
+  function solve(p) {
+    const g = p.slice();
+    const rec = () => {
+      let best = -1, bc = 10;
+      for (let i = 0; i < 81; i++) if (!g[i]) { let c = 0; for (let v = 1; v <= 9; v++) if (ok(g, i, v)) c++; if (c < bc) { bc = c; best = i; if (c < 2) break; } }
+      if (best < 0) return true; if (!bc) return false;
+      for (let v = 1; v <= 9; v++) if (ok(g, best, v)) { g[best] = v; if (rec()) return true; g[best] = 0; }
+      return false;
+    };
+    return rec() ? g : null;
+  }
+  /* Tabuleiro no link do duelo: os números dados, e cada sequência de casas vazias numa letra (a = 1, b = 2…). */
+  function packBoard(p) {
+    let out = "", z = 0;
+    const flush = () => { while (z > 0) { const k = Math.min(26, z); out += String.fromCharCode(96 + k); z -= k; } };
+    for (const v of p) { if (v) { flush(); out += v; } else z++; }
+    flush(); return out;
+  }
+  function unpackBoard(str) {
+    if (typeof str !== "string" || !/^[1-9a-z]+$/.test(str)) return null;
+    const out = [];
+    for (const ch of str) { if (ch >= "a") for (let k = 0; k < ch.charCodeAt(0) - 96; k++) out.push(0); else out.push(+ch); }
+    return out.length === 81 ? out : null;
+  }
+
   function attempt(diff, rnd) {
     const sol = Array(81).fill(0); fill(sol, rnd);
     const g = sol.slice(); let givens = 81;
@@ -167,9 +193,14 @@
   }
 
   /* ---------- Estado ---------- */
-  let S = null, els = null, hist = [], anims = {}, isDaily = false;
-  const KEY = () => isDaily ? "sudoku:dia" : "sudoku";
+  let S = null, els = null, hist = [], anims = {}, isDaily = false, duelD = null;
+  const KEY = () => duelD ? "sudoku:duelo" : isDaily ? "sudoku:dia" : "sudoku";
   function load() {
+    if (duelD) {
+      const d = store.get(KEY(), null);
+      if (d && d.puzzle && d.bid === duelD.bid) { S = d; return true; }
+      return false;
+    }
     if (isDaily) {
       const d = store.get(KEY(), null);
       if (d && d.puzzle && d.daily === daily.today()) { S = d; return true; }
@@ -186,11 +217,14 @@
   const progress = () => S && !S.done && S.vals.some((v, i) => v && !S.puzzle[i]);
 
   function newGame(diff, practice) {
-    diff = isDaily ? DAILY_DIFF : diff || (S && S.diff) || "medium";
+    diff = duelD ? duelD.d : isDaily ? DAILY_DIFF : diff || (S && S.diff) || "medium";
     const ds = daily.today();
-    const { puzzle, solution } = generate(diff, isDaily ? daily.rng("sudoku", ds) : null);
+    let puzzle, solution;
+    if (duelD) { puzzle = unpackBoard(duelD.b); solution = solve(puzzle); }
+    else ({ puzzle, solution } = generate(diff, isDaily ? daily.rng("sudoku", ds) : null));
     S = { diff, puzzle, solution, vals: puzzle.slice(), notes: Array(81).fill(0), sel: puzzle.indexOf(0), errors: 0, hints: 0, time: 0, done: false, noteMode: false };
-    if (isDaily) { S.daily = ds; if (practice) S.practice = true; }
+    if (duelD) S.bid = duelD.bid;
+    else if (isDaily) { S.daily = ds; if (practice) S.practice = true; }
     hist = []; anims = {};
     save();
     if (els) { msg(isDaily ? dailyMsg() : ""); syncDiff(); render(); animateBoardIn(); }
@@ -208,9 +242,11 @@
 
   /* ---------- Ecrã ---------- */
   function mount(c, opts) {
-    const want = !!(opts && opts.daily);
-    if (want !== isDaily) { save(); S = null; isDaily = want; }
+    const wantDuel = (opts && opts.duel) || null, want = !wantDuel && !!(opts && opts.daily);
+    if (want !== isDaily || !!wantDuel !== !!duelD) { save(); S = null; isDaily = want; }
+    duelD = wantDuel;
     if (isDaily && S && S.daily !== daily.today()) S = null;
+    if (duelD && S && S.bid !== duelD.bid) S = null;
     if (!S && !load()) newGame("medium");
     els = c; hist = []; anims = {};
     c.stats.innerHTML = ui.stat("Tempo", "s-time", "hl") + ui.stat("Erros", "s-err") + ui.stat("Pistas", "s-hint") + ui.stat("Recorde", "s-best");
@@ -225,12 +261,18 @@
     const m = el("div", { class: "msg", id: "s-msg", role: "status" });
     c.board.append(grid, m);
 
-    const diffSeg = isDaily
+    const diffSeg = duelD ? Sala.duel.tag(duelD) : isDaily
       ? el("div", { class: "mode-tag" }, ui.ICON.cal + "Desafio de " + esc(daily.label(S.daily)) + " · Médio")
       : ui.seg(DIFFS, S.diff, id => askNew(id), "Dificuldade");
-    if (!isDaily) { diffSeg.classList.add("wrap"); diffSeg.id = "s-diff"; }
+    if (!isDaily && !duelD) { diffSeg.classList.add("wrap"); diffSeg.id = "s-diff"; }
     const top = el("div", { class: "row" });
-    if (isDaily) {
+    if (duelD) {
+      const bGive = el("button", { class: "btn", type: "button", id: "s-giveup" }, '<svg viewBox="0 0 24 24"><path d="M5 21V4"/><path d="M5 4h12l-2.5 4L17 12H5"/></svg>Desistir');
+      bGive.onclick = askGiveUp;
+      const bNorm = el("button", { class: "btn", type: "button" }, ui.ICON.plus + "Jogo normal");
+      bNorm.onclick = () => Sala.go("sudoku");
+      top.append(bGive, bNorm);
+    } else if (isDaily) {
       const bAgain = el("button", { class: "btn", type: "button", id: "s-again" }, ui.ICON.undo + "Repetir (não conta)");
       bAgain.onclick = () => newGame(DAILY_DIFF, true);
       const bNorm = el("button", { class: "btn", type: "button" }, ui.ICON.plus + "Jogo normal");
@@ -258,12 +300,29 @@
     const kb = el("p", { class: "hint for-mouse" }, "Teclado: setas, <kbd>1</kbd>–<kbd>9</kbd>, <kbd>N</kbd> notas, <kbd>⌫</kbd> apagar, <kbd>Ctrl</kbd>+<kbd>Z</kbd> desfazer.");
     c.controls.append(diffSeg, pad, tools, top, kb);
 
-    if (isDaily) msg(dailyMsg());
+    if (duelD) msg(S.done ? "Duelo terminado." : "Mesmo tabuleiro de " + duelD.n + ". Os pontos contam como num jogo normal.");
+    else if (isDaily) msg(dailyMsg());
     else if (S.done) msg("Resolvido. Começa outro quando quiseres.");
     render();
     animateBoardIn();
   }
-  function unmount() { save(); els = null; if (isDaily) { S = null; isDaily = false; } }
+  function unmount() { save(); els = null; if (isDaily || duelD) { S = null; isDaily = false; duelD = null; } }
+  /* Duelo: desistir conta como derrota, com as casas certas como desempate. */
+  function askGiveUp() {
+    if (S.done) return;
+    modal.open({
+      title: "Desistir do duelo?",
+      body: "<p>O duelo acaba com 0 pontos. Só desempata pelas casas que já tens certas.</p>",
+      actions: [{ label: "Continuar a jogar" }, { label: "Desistir", primary: true, onClick: () => { setTimeout(giveUp, 0); } }]
+    });
+  }
+  function giveUp() {
+    S.done = true; save(); render();
+    const right = S.vals.filter((v, i) => v && !S.puzzle[i] && v === S.solution[i]).length;
+    msg("Duelo terminado.");
+    finish({ game: "sudoku", diff: S.diff, diffLabel: DIFFS.find(d => d.id === S.diff).label, score: 0, time: S.time, won: false, duel: duelD, progress: right,
+      breakdown: [["Casas certas", fmtNum(right) + " de " + fmtNum(S.puzzle.filter(v => !v).length)], ["Tempo", fmtTime(S.time)]] });
+  }
   function syncDiff() {
     const s = document.getElementById("s-diff"); if (!s) return;
     s.querySelectorAll("button").forEach((b, k) => b.setAttribute("aria-pressed", String(DIFFS[k].id === S.diff)));
@@ -314,6 +373,7 @@
     set("s-time", fmtTime(S.time)); set("s-err", S.errors); set("s-hint", S.hints);
     const b = ranking.best("sudoku", isDaily ? "dia" : S.diff); set("s-best", b ? fmtNum(b.score) : "—");
     const ag = document.getElementById("s-again"); if (ag) ag.hidden = !S.done;
+    const gu = document.getElementById("s-giveup"); if (gu) gu.disabled = !!S.done;
   }
 
   /* ---------- Animações ---------- */
@@ -387,11 +447,14 @@
     const sc = score(S), dl = DIFFS.find(d => d.id === S.diff).label;
     msg("Resolvido em " + fmtTime(S.time) + ".");
     const dd = S.daily, practice = !!(dd && (S.practice || daily.result("sudoku", dd)));
+    const dD = duelD;
+    if (dD) msg("Resolvido em " + fmtTime(S.time) + ". Duelo terminado.");
     setTimeout(() => {
       finish({
         game: "sudoku", diff: S.diff, diffLabel: dl, title: "Sudoku resolvido", score: sc.total, time: S.time,
         breakdown: [["Base (" + dl + ")", fmtNum(sc.base)], ["Tempo " + fmtTime(S.time), "−" + fmtNum(sc.tPen)], ["Erros × " + S.errors, "−" + fmtNum(sc.ePen)], ["Pistas × " + S.hints, "−" + fmtNum(sc.hPen)]],
-        extra: { errors: S.errors, hints: S.hints }, daily: dd, practice,
+        extra: { errors: S.errors, hints: S.hints }, daily: dd, practice, duel: dD,
+        challenge: { d: S.diff, b: packBoard(S.puzzle) },
         share: { lines: ["Tempo " + fmtTime(S.time), S.errors + (S.errors === 1 ? " erro" : " erros") + " · " + S.hints + (S.hints === 1 ? " pista" : " pistas")] },
         newLabel: dd ? "Jogo normal" : "Novo jogo",
         onNew: () => dd ? Sala.go("sudoku") : newGame(S.diff)
@@ -435,6 +498,7 @@
       "<li>O tempo vai descontando: a base esgota-se aos 20 minutos no Iniciante, aos 40 no Fácil, Médio e Difícil, e aos 60 no Diabólico.</li>" +
       "<li>Cada erro tira 5 % da base; cada pista, 10 %.</li>" +
       "<li>Nunca desce abaixo de 10 % da base. O top 10 de cada dificuldade fica no ranking.</li></ul>" +
+      "<h4>Duelo</h4><p>No fim de um jogo, <b>Desafiar</b> cria um link com o mesmo tabuleiro e o teu resultado. Quem o abrir joga esse Sudoku e vê no fim quem ganhou: mais pontos, e em empate, menos tempo. Desistir conta como derrota.</p>" +
       "<h4>Desafio do dia</h4><p>Um Sudoku Médio igual para toda a gente nesse dia, no topo do menu. Só a primeira tentativa conta; depois podes repeti-lo à vontade e partilhar o resultado.</p>";
   }
 
@@ -444,6 +508,8 @@
     art: '<svg viewBox="0 0 36 36"><rect x="2" y="2" width="32" height="32" rx="5" fill="var(--surface)" stroke="var(--ink)" stroke-width="2"/><path d="M12.7 2v32M23.3 2v32M2 12.7h32M2 23.3h32" stroke="var(--ink)" stroke-width="1.4"/><rect x="13.4" y="13.4" width="9.2" height="9.2" fill="var(--blue)"/><text x="7.3" y="10.4" font-size="7.5" font-weight="700" text-anchor="middle" fill="var(--ink)" font-family="Roboto,sans-serif">5</text><text x="18" y="21" font-size="7.5" font-weight="700" text-anchor="middle" fill="var(--on-accent)" font-family="Roboto,sans-serif">3</text><text x="28.7" y="31.6" font-size="7.5" font-weight="700" text-anchor="middle" fill="var(--blue-ink)" font-family="Roboto,sans-serif">8</text></svg>',
     lastDiff: () => (S || load() && S) ? S.diff : "medium",
     daily: true,
+    duel: true, duelTime: true,
+    duelOk(D) { if (!DIFFS.some(x => x.id === D.d)) return false; const p = unpackBoard(D.b); return !!p && p.filter(Boolean).length >= 17 && count(p.slice(), 2) === 1; },
     dailyPlaying() { const d = store.get("sudoku:dia", null); return !!(d && d.daily === daily.today() && !d.done && !d.practice && d.vals.some((v, i) => v && !d.puzzle[i])); },
     meta() {
       const out = [];

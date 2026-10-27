@@ -11,25 +11,41 @@
   const labelOf = (sp, mo) => speedOf(sp).label + (mo === "livre" ? " · sem paredes" : "");
   const DIRS = { up: [-1, 0], down: [1, 0], left: [0, -1], right: [0, 1] };
 
-  let S = null, els = null, cv = null, cx = null, raf = 0, last = 0, acc = 0, queue = [], swipe = null, born = 0, deadAt = 0;
+  let S = null, els = null, cv = null, cx = null, raf = 0, last = 0, acc = 0, queue = [], swipe = null, born = 0, deadAt = 0, duelD = null;
+  const KEY = () => duelD ? "cobra:duelo" : "cobra";
+  const parseKey = k => { const livre = /-livre$/.test(k); return { speed: k.replace(/-livre$/, ""), mode: livre ? "livre" : "paredes" }; };
   let prevSnake = null, frac = 1, frame = 0, bgCache = null, bgKey = "";
 
   /* ---------- Estado ---------- */
-  function fresh(speed, mode) {
+  /* As maçãs saem da semente do jogo, pela ordem (a n.ª maçã aparece sempre no mesmo sítio, se estiver livre):
+     o mesmo jogo dá para mandar num duelo. */
+  function fresh(speed, mode, seed) {
     const m = N / 2 | 0;
-    return { speed, mode, snake: [[m, 6], [m, 5], [m, 4]], dir: [0, 1], apple: null, gold: null, score: 0, apples: 0, golds: 0, time: 0, state: "ready", grow: 0 };
+    return { speed, mode, seed: seed || Sala.duel.newSeed(), appleN: 0, snake: [[m, 6], [m, 5], [m, 4]], dir: [0, 1], apple: null, gold: null, score: 0, apples: 0, golds: 0, time: 0, state: "ready", grow: 0 };
   }
-  function load() { const d = store.get("cobra", null); if (d && d.snake && d.snake.length) { S = d; if (S.state === "run") S.state = "pause"; return true; } return false; }
-  const save = () => { if (S) store.set("cobra", S); };
+  function load() {
+    const d = store.get(KEY(), null);
+    if (d && d.snake && d.snake.length && (!duelD || d.bid === duelD.bid)) {
+      S = d; if (S.state === "run") S.state = "pause";
+      if (!S.seed) { S.seed = Sala.duel.newSeed(); S.appleN = 0; S.legacy = true; } /* jogo de antes das sementes: não dá para desafiar */
+      return true;
+    }
+    return false;
+  }
+  const save = () => { if (S) store.set(KEY(), S); };
   const prefs = () => store.get("cobraPrefs", { speed: "normal", mode: "paredes" });
   const lastDiff = () => S ? keyOf(S.speed, S.mode) : keyOf(prefs().speed, prefs().mode);
 
   function newGame(speed, mode) {
     const p = prefs();
-    speed = speed || (S && S.speed) || p.speed; mode = mode || (S && S.mode) || p.mode;
-    store.set("cobraPrefs", { speed, mode });
-    S = fresh(speed, mode); queue = []; acc = 0;
-    S.apple = freeCell(); born = performance.now();
+    if (duelD) { const k = parseKey(duelD.d); S = fresh(k.speed, k.mode, duelD.b); S.bid = duelD.bid; }
+    else {
+      speed = speed || (S && S.speed) || p.speed; mode = mode || (S && S.mode) || p.mode;
+      store.set("cobraPrefs", { speed, mode });
+      S = fresh(speed, mode);
+    }
+    queue = []; acc = 0;
+    S.apple = nextApple(); born = performance.now();
     save(); if (els) { els.wrap.classList.remove("shake"); syncSegs(); msg(""); draw(); stats(); }
   }
   function askNew(speed, mode) {
@@ -43,15 +59,18 @@
     });
   }
 
-  function freeCell() {
+  /* Casa livre tirada da semente: tenta as casas que a semente der; se estiverem todas ocupadas, a seguinte livre. */
+  function freeCell(what) {
     const busy = new Set(S.snake.map(p => p[0] * N + p[1]));
     if (S.apple) busy.add(S.apple[0] * N + S.apple[1]);
     if (S.gold) busy.add(S.gold.p[0] * N + S.gold.p[1]);
-    const free = []; for (let i = 0; i < N * N; i++) if (!busy.has(i)) free.push(i);
-    if (!free.length) return null;
-    const i = free[Math.random() * free.length | 0];
+    if (busy.size >= N * N) return null;
+    const rnd = Sala.rng("cobra:" + S.seed + ":" + what);
+    for (let k = 0; k < 60; k++) { const i = rnd() * N * N | 0; if (!busy.has(i)) return [i / N | 0, i % N]; }
+    let i = rnd() * N * N | 0; while (busy.has(i)) i = (i + 1) % (N * N);
     return [i / N | 0, i % N];
   }
+  const nextApple = () => freeCell("a:" + (S.appleN++));
   const interval = () => speedOf(S.speed).ms * Math.max(.55, 1 - S.apples * .012);
 
   /* ---------- Jogo ---------- */
@@ -87,8 +106,8 @@
     if (S.apple && S.apple[0] === r && S.apple[1] === c) {
       S.score += APPLE * mult; S.apples++; S.grow += 1; ate = true;
       sound.place(); vibrate(10);
-      S.apple = null; S.apple = freeCell(); born = performance.now();
-      if (!S.gold && Math.random() < GOLD_CHANCE) { const p = freeCell(); if (p) S.gold = { p, life: GOLD_STEPS, born: performance.now() }; }
+      S.apple = null; S.apple = nextApple(); born = performance.now();
+      if (!S.gold && Sala.rng("cobra:" + S.seed + ":gc:" + S.apples)() < GOLD_CHANCE) { const p = freeCell("g:" + S.apples); if (p) S.gold = { p, life: GOLD_STEPS, born: performance.now() }; }
     }
     if (S.gold && S.gold.p[0] === r && S.gold.p[1] === c) {
       S.score += GOLD * mult; S.golds++; S.grow += 2; S.gold = null; ate = true;
@@ -110,15 +129,16 @@
         fx.burst(rc.left + (h[1] + .5) * cs, rc.top + (h[0] + .5) * cs);
       }
     }
-    if (!S.score) { Sala.stats.record("cobra", keyOf(S.speed, S.mode), { time: S.time, score: 0 }); msg("Sem pontos desta vez. Tenta outra vez.", true); return; }
-    msg(full ? "" : "Fim de jogo.", !full);
-    const lbl = labelOf(S.speed, S.mode);
+    if (!S.score && !duelD) { Sala.stats.record("cobra", keyOf(S.speed, S.mode), { time: S.time, score: 0 }); msg("Sem pontos desta vez. Tenta outra vez.", true); return; }
+    msg(duelD ? "Duelo terminado." : full ? "" : "Fim de jogo.", !full);
+    const lbl = labelOf(S.speed, S.mode), dD = duelD;
     setTimeout(() => {
       if (!els || S.state !== "over") return;
       finish({
-        game: "cobra", diff: keyOf(S.speed, S.mode), diffLabel: lbl, title: full ? "Ganhaste" : "Fim de jogo", score: S.score, time: S.time,
+        game: "cobra", diff: keyOf(S.speed, S.mode), diffLabel: lbl, title: full ? "Ganhaste" : "Fim de jogo", score: S.score, time: S.time, duel: dD, progress: S.snake.length,
         breakdown: [["Modo", lbl], ["Maçãs", fmtNum(S.apples)], ["Maçãs douradas", fmtNum(S.golds)], ["Tamanho final", fmtNum(S.snake.length)], ["Tempo", fmtTime(S.time)]],
-        extra: { len: S.snake.length }, onNew: () => newGame()
+        extra: { len: S.snake.length }, onNew: () => newGame(),
+        challenge: S.legacy ? null : { d: keyOf(S.speed, S.mode), b: S.seed, p: S.snake.length }
       });
     }, motion() ? 900 : 200);
   }
@@ -230,9 +250,12 @@
   }
 
   /* ---------- Ecrã ---------- */
-  function mount(c) {
+  function mount(c, opts) {
+    const wantDuel = (opts && opts.duel) || null;
+    if (!!wantDuel !== !!duelD || (wantDuel && duelD && wantDuel.bid !== duelD.bid)) { save(); S = null; }
+    duelD = wantDuel;
     if (!S && !load()) newGame();
-    if (!S.apple && S.state !== "over") S.apple = freeCell();
+    if (!S.apple && S.state !== "over") S.apple = nextApple();
     els = c;
     c.stats.innerHTML = ui.stat("Pontos", "cb-score", "hl") + ui.stat("Recorde", "cb-best") + ui.stat("Tamanho", "cb-len") + ui.stat("Tempo", "cb-time");
     const wrap = el("div", { class: "cb-wrap", id: "cb-wrap" });
@@ -244,10 +267,10 @@
     const segM = ui.seg(MODES, S.mode, id => askNew(S.speed, id), "Paredes"); segM.id = "cb-mode";
     const row = el("div", { class: "casino-actions" });
     const bP = el("button", { class: "btn", type: "button", id: "cb-pause" }); bP.onclick = () => { togglePause(); };
-    const bN = el("button", { class: "btn", type: "button" }, ui.ICON.plus + "Novo jogo"); bN.onclick = () => askNew();
+    const bN = el("button", { class: "btn", type: "button" }, ui.ICON.plus + (duelD ? "Jogo normal" : "Novo jogo")); bN.onclick = () => duelD ? Sala.go("cobra") : askNew();
     row.append(bP, bN);
     const tip = el("p", { class: "hint" }, '<span class="for-touch">Desliza o dedo no tabuleiro para mudar de direção.</span><span class="for-mouse">Setas ou <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> para virar, <kbd>Espaço</kbd> para pausa. Também dá para arrastar com o rato.</span>');
-    c.controls.append(segS, segM, row, tip);
+    if (duelD) c.controls.append(Sala.duel.tag(duelD), row, tip); else c.controls.append(segS, segM, row, tip);
     cv.addEventListener("pointerdown", e => { e.preventDefault(); swipe = { x: e.clientX, y: e.clientY, moved: false }; try { cv.setPointerCapture(e.pointerId); } catch (x) {} });
     cv.addEventListener("pointermove", e => {
       if (!swipe) return;
@@ -263,7 +286,8 @@
     document.addEventListener("pointerup", docUp);
     document.addEventListener("touchmove", noScroll, { passive: false });
     resize(); syncPause(); stats();
-    if (S.state === "over") msg(S.score ? "Fim de jogo. Começa outro quando quiseres." : "Sem pontos desta vez. Tenta outra vez.", true);
+    if (S.state === "over") msg(duelD ? "Duelo terminado." : S.score ? "Fim de jogo. Começa outro quando quiseres." : "Sem pontos desta vez. Tenta outra vez.", true);
+    else if (duelD) msg("As maçãs aparecem nos mesmos sítios, pela mesma ordem, que no jogo de " + duelD.n + ".");
     addEventListener("resize", resize);
     last = performance.now(); raf = requestAnimationFrame(loop);
   }
@@ -272,6 +296,7 @@
     document.removeEventListener("pointerdown", docDown); document.removeEventListener("pointermove", docMove);
     document.removeEventListener("pointerup", docUp); document.removeEventListener("touchmove", noScroll);
     els = null; cv = cx = null; docSwipe = null;
+    if (duelD) { S = null; duelD = null; }
   }
   /* Com o jogo a correr, deslizar em qualquer sítio do ecrã (fora dos botões) também vira a cobra. */
   let docSwipe = null;
@@ -320,7 +345,7 @@
     const m = { ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down", a: "left", d: "right", w: "up", s: "down", A: "left", D: "right", W: "up", S: "down" }[e.key];
     if (m) { turn(m); e.preventDefault(); return; }
     if (e.key === " " || e.key === "p" || e.key === "P") { togglePause(); e.preventDefault(); return; }
-    if (e.key === "Enter" && S.state === "over") { newGame(); e.preventDefault(); }
+    if (e.key === "Enter" && S.state === "over" && !duelD) { newGame(); e.preventDefault(); }
   }
   function tick() { if (S && S.state === "run") { S.time++; const n = document.getElementById("cb-time"); if (n) n.textContent = fmtTime(S.time); if (S.time % 10 === 0) save(); } }
 
@@ -328,7 +353,8 @@
     return "<h4>Objetivo</h4><p>Comer as maçãs e crescer o mais possível sem bater em nada. A cobra não para: só podes escolher para onde vira.</p>" +
       "<h4>Controlos</h4><ul><li><b>Toque:</b> desliza o dedo no tabuleiro (dá para fazer várias curvas sem levantar o dedo).</li><li><b>Teclado:</b> setas ou <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>; <kbd>Espaço</kbd> põe em pausa.</li><li><b>Rato:</b> arrasta no tabuleiro.</li><li>O jogo pára sozinho quando sais da app ou abres uma janela.</li></ul>" +
       "<h4>Modos</h4><ul><li><b>Com paredes:</b> bater na moldura ou no próprio corpo acaba o jogo.</li><li><b>Sem paredes:</b> sai de um lado e entra pelo outro; só acaba se te morderes.</li><li>A velocidade (Lenta, Normal ou Rápida) vai aumentando um pouco a cada maçã.</li></ul>" +
-      "<h4>Pontuação</h4><ul><li>Maçã: 10 pontos × a velocidade (×1 Lenta, ×2 Normal, ×3 Rápida).</li><li>Às vezes aparece uma maçã dourada: vale 50 × a velocidade e desaparece quando o anel à volta se esgota.</li><li>Cada combinação de velocidade e paredes tem o seu top 10.</li></ul>";
+      "<h4>Pontuação</h4><ul><li>Maçã: 10 pontos × a velocidade (×1 Lenta, ×2 Normal, ×3 Rápida).</li><li>Às vezes aparece uma maçã dourada: vale 50 × a velocidade e desaparece quando o anel à volta se esgota.</li><li>Cada combinação de velocidade e paredes tem o seu top 10.</li></ul>" +
+      "<h4>Duelo</h4><p>No fim, <b>Desafiar</b> manda um link com a mesma velocidade, as mesmas paredes e as maçãs nos mesmos sítios, pela mesma ordem. Ganha quem fizer mais pontos; em empate, a cobra maior.</p>";
   }
 
   Sala.registerGame({
@@ -337,6 +363,10 @@
     desc: "Comer, crescer e não bater em nada.",
     art: '<svg viewBox="0 0 36 36"><path d="M6 28h12V18h12V8" fill="none" stroke="var(--blue)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="30" cy="8" r="3.5" fill="var(--ink)"/><circle cx="9" cy="10" r="3" fill="var(--yellow)"/></svg>',
     lastDiff,
+    duel: true,
+    duelOk: D => { const k = parseKey(D.d); return SPEEDS.some(x => x.id === k.speed) && /^[a-z0-9]{4,20}$/.test(D.b); },
+    duelLabel: d => { const k = parseKey(d); return labelOf(k.speed, k.mode); },
+    duelText: r => "Tamanho " + fmtNum(r.p),
     meta() {
       const out = []; if (!S) load();
       if (S && (S.state === "pause" || S.state === "run") && S.score) out.push({ text: "Em pausa · " + fmtNum(S.score) + " pts", cls: "blue" });

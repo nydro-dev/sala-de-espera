@@ -1,7 +1,7 @@
 {
   "name": "Sala de Espera",
   "short_name": "Sala de Espera",
-  "description": "Sudoku e Minas para os intervalos, com ranking local.",
+  "description": "Jogos curtos para os intervalos: Sudoku, Minas, Palavras, Solitário, Dobra, Cobra e casino, com desafio do dia e duelos por link.",
   "lang": "pt-PT",
   "start_url": "./",
   "scope": "./",

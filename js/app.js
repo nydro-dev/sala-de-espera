@@ -66,7 +66,7 @@
      em nenhuma secção vão para "Outros", para nunca desaparecerem do menu. */
   const SECTIONS = [
     { id: "puz", label: "Puzzles", ids: ["sudoku", "minas", "palavras", "soli"] },
-    { id: "arc", label: "Arcada", ids: ["g2048", "cobra"] },
+    { id: "arc", label: "Arcada", ids: ["dobra", "cobra"] },
     { id: "cas", label: "Casino", ids: ["blackjack", "roleta"] }
   ];
   function tile(g, sec, soon) {
@@ -103,18 +103,28 @@
   function go(id) { fromMenu = !!id && !active; location.hash = id ? "#/" + id : ""; }
   Sala.go = go;
   function route() {
-    const mm = location.hash.match(/^#\/(\w+)(?:\/(\w+))?/) || [];
+    /* O jogo que se chamava 2048 passou a chamar-se Dobra: os links antigos continuam a funcionar. */
+    if (/^#\/g2048(\/|$)/.test(location.hash)) { history.replaceState(null, "", "#/dobra"); }
+    /* Duelo: #/duelo/<jogo>/<código> */
+    const dm = location.hash.match(/^#\/duelo\/(\w+)\/([A-Za-z0-9_-]+)/);
+    let duelData = null;
+    if (modal.isOpen) modal.close(true);
+    if (dm) {
+      duelData = Sala.openDuel(dm[1], dm[2]);
+      /* Sem jogo para começar (link inválido ou duelo já jogado): fica o menu por baixo da janela. */
+      if (!duelData) { history.replaceState(null, "", location.pathname + location.search); fromMenu = false; }
+    }
+    const mm = duelData ? [null, duelData.g] : location.hash.match(/^#\/(\w+)(?:\/(\w+))?/) || [];
     const id = mm[1], g = id && gameById(id);
     const isDaily = mm[2] === "dia" && g && g.daily;
-    if (modal.isOpen) modal.close(true);
     if (active) { active.unmount(); active = null; }
     const body = { stats: $("g-stats"), board: $("g-board"), controls: $("g-controls") };
     Object.values(body).forEach(n => n.innerHTML = "");
     if (g && g.ready) {
       $("v-menu").hidden = true; $("v-game").hidden = false;
-      const t = isDaily ? (g.dailyTitle || g.name + " do dia") : g.name;
+      const t = duelData ? "Duelo · " + g.name : isDaily ? (g.dailyTitle || g.name + " do dia") : g.name;
       $("g-title").textContent = t; document.title = t + " · Sala de Espera";
-      active = g; g.mount(body, { daily: !!isDaily });
+      active = g; g.mount(body, { daily: !!isDaily, duel: duelData });
       if (!store.get("seenHelp:" + g.id, false)) { store.set("seenHelp:" + g.id, true); setTimeout(() => Sala.showHelp(g.id), 250); }
     } else {
       $("v-game").hidden = true; $("v-menu").hidden = false; document.title = "Sala de Espera";
@@ -127,7 +137,7 @@
   /* Voltar: se viemos do menu, recua no histórico (o botão de recuar do Android fica coerente). */
   $("g-back").onclick = () => { sound.tap(); if (fromMenu) { fromMenu = false; history.back(); } else go(""); };
   $("g-help").onclick = () => active && Sala.showHelp(active.id);
-  $("g-rank").onclick = () => active && Sala.showRanking(active.id, /\/dia$/.test(location.hash) ? "dia" : active.lastDiff && active.lastDiff());
+  $("g-rank").onclick = () => active && (/^#\/duelo\//.test(location.hash) ? Sala.showRanking(active.id, null, null, "rivals") : Sala.showRanking(active.id, /\/dia$/.test(location.hash) ? "dia" : active.lastDiff && active.lastDiff()));
   $("m-rank").onclick = () => Sala.showRanking();
   $("m-settings").onclick = () => Sala.showSettings();
 

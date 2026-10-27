@@ -1,5 +1,11 @@
 /* Sala de Espera — base comum: tema, componentes e estrutura dos ecrãs. */
 
+/* Roboto servido pelo próprio site (SIL OFL 1.1, licencas/OFL-1.1-Roboto.txt): nada é pedido à Google. */
+@font-face{font-family:"Roboto";font-style:normal;font-weight:400;font-display:swap;src:url(../fonts/roboto-400.woff2) format("woff2")}
+@font-face{font-family:"Roboto";font-style:normal;font-weight:500;font-display:swap;src:url(../fonts/roboto-500.woff2) format("woff2")}
+@font-face{font-family:"Roboto";font-style:normal;font-weight:700;font-display:swap;src:url(../fonts/roboto-700.woff2) format("woff2")}
+@font-face{font-family:"Roboto";font-style:normal;font-weight:900;font-display:swap;src:url(../fonts/roboto-900.woff2) format("woff2")}
+
 /* ---------- Tema ---------- */
 :root{
   --blue:#09B5FF;        /* preenchimento: botões e destaques */
@@ -405,7 +411,7 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 @media (min-width:900px){.rl-cell{min-height:38px}}
 
 
-/* ===================== 2048 ===================== */
+/* ===================== Dobra ===================== */
 .t-board{position:relative;width:100%;max-width:min(480px,100%);aspect-ratio:1;background:var(--sunken);border:1px solid var(--line);border-radius:14px;touch-action:none;user-select:none;-webkit-user-select:none;overflow:hidden}
 .t-slot,.tile{position:absolute;left:0;top:0;width:var(--cell);height:var(--cell);border-radius:10px}
 .t-slot{background:color-mix(in srgb,var(--line) 55%,transparent)}
@@ -519,3 +525,28 @@ html.cb-lock,html.cb-lock body{overscroll-behavior:none;touch-action:none;overfl
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .chip.good{color:var(--on-accent)}}
 .mode-tag{display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 12px;border-radius:var(--r-sm);background:var(--yellow-soft);border:1px solid color-mix(in srgb,var(--yellow) 55%,var(--line));font-weight:700;font-size:.9rem}
 .mode-tag svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+
+/* ===================== Duelo ===================== */
+.res-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.res-btns .share-btn{margin-top:0}
+.duel-head{margin:0 0 10px;color:var(--muted);font-weight:700;font-size:.85rem}
+.duel-vs{display:grid;grid-template-columns:1fr auto 1fr;align-items:stretch;gap:8px}
+.dv{display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 6px;border-radius:var(--r-sm);background:var(--surface-2);border:1px solid var(--line);min-width:0}
+.dv small{font-weight:700;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dv b{font-size:1.9rem;font-weight:900;line-height:1.1;font-variant-numeric:tabular-nums}
+.dv b i{font-style:normal;font-size:.8rem;font-weight:700;color:var(--muted);margin-left:3px}
+.dv span{font-size:.8rem;color:var(--muted)}
+.dv.win{background:var(--yellow-soft);border-color:color-mix(in srgb,var(--yellow) 60%,var(--line))}
+.dv.win small{color:var(--ink)}
+.dv-x{align-self:center;font-weight:900;color:var(--muted);font-size:.85rem;text-transform:uppercase}
+.duel-tag{flex-wrap:wrap;text-align:center;background:var(--blue-softer);border-color:color-mix(in srgb,var(--blue) 45%,var(--line))}
+.duel-tag span{flex-basis:100%;font-weight:500;font-size:.82rem;color:var(--muted)}
+.duel-link{font-size:.85rem}
+.rank.rivals td:first-child{font-weight:700;overflow-wrap:anywhere}
+.duel-recent-h{margin:18px 0 6px;font-size:.75rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.duel-recent{list-style:none;margin:0;padding:0}
+.duel-recent li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.duel-recent li small{display:block;color:var(--muted);font-size:.78rem;font-variant-numeric:tabular-nums}
+.duel-recent li>span:first-child{min-width:0;overflow-wrap:anywhere}
+.dr{flex:none;font-size:.78rem;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--sunken);color:var(--muted)}
+.dr.win{background:var(--yellow);color:var(--on-accent)}

@@ -94,10 +94,10 @@
   }
 
   /* ---------- Arcada ---------- */
-  function g2048() {
+  function dobra() {
     const cs = 28, gap = 4, x0 = 33, y0 = 7;
-    const T = [["2", "", "4"], ["8", "2048", ""], ["", "16", "2"]];
-    const BG = { "": "#2E2B33", 2: "#EDF8FF", 4: "#9EDFFF", 8: "#09B5FF", 16: "#0790CC", 2048: "#FFC301" };
+    const T = [["2", "", "4"], ["8", "×2", ""], ["", "16", "2"]];
+    const BG = { "": "#2E2B33", 2: "#EDF8FF", 4: "#9EDFFF", 8: "#09B5FF", 16: "#0790CC", "×2": "#FFC301" };
     let s = '<rect x="' + (x0 - 6) + '" y="' + (y0 - 6) + '" width="' + (3 * cs + 2 * gap + 12) + '" height="' + (3 * cs + 2 * gap + 12) + '" rx="10" fill="#1A181D"/>';
     T.forEach((row, r) => row.forEach((v, c) => {
       const x = x0 + c * (cs + gap), y = y0 + r * (cs + gap);
@@ -153,5 +153,5 @@
     return svg(s);
   }
 
-  Sala.menuArt = { sudoku, minas, palavras, soli: solitario, g2048, cobra, blackjack, roleta };
+  Sala.menuArt = { sudoku, minas, palavras, soli: solitario, dobra, cobra, blackjack, roleta };
 })();

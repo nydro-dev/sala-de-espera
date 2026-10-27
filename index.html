@@ -9,14 +9,12 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Sala de Espera">
-<meta name="description" content="Sudoku, Minas, 2048, Palavras, Solitário, Cobra, Blackjack e Roleta para os intervalos, com desafio do dia, estatísticas e ranking local.">
+<meta name="description" content="Sudoku, Minas, Palavras, Solitário, Dobra, Cobra, Blackjack e Roleta para os intervalos, com desafio do dia, duelos por link, estatísticas e ranking local.">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icon-192.png">
 <title>Sala de Espera</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap">
+<link rel="preload" href="fonts/roboto-400.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="css/base.css">
 <script>
 /* Aplica o tema antes de desenhar, para não piscar. */
@@ -82,7 +80,7 @@
 <script src="js/core.js"></script>
 <script src="js/games/sudoku.js"></script>
 <script src="js/games/minas.js"></script>
-<script src="js/games/g2048.js"></script>
+<script src="js/games/dobra.js"></script>
 <script src="js/data/validas.js"></script>
 <script src="js/data/solucoes.js"></script>
 <script src="js/games/palavras.js"></script>

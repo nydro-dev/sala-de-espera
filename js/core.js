@@ -212,7 +212,8 @@
   };
 
   /* ---------- Desafio do dia: o mesmo jogo para toda a gente, a partir da data ---------- */
-  const today = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+  const ymd = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  const today = () => ymd(new Date());
   const daily = {
     today,
     GAMES: ["palavras", "sudoku", "minas", "soli"],
@@ -352,11 +353,186 @@
     modal.open({ title: "Partilhar resultado", body: box, className: "share", actions: acts, onClose: () => { if (url) setTimeout(() => URL.revokeObjectURL(url), 1000); } });
   }
 
+  /* ---------- Duelo por link ----------
+     O link leva tudo o que é preciso para jogar o mesmo tabuleiro: dificuldade, semente (ou o próprio
+     tabuleiro), nome e resultado de quem desafia. Fica depois do "#", por isso nunca chega ao servidor.
+     Resultado: { s: pontos, t: segundos, p: progresso (desempate), w: 1 ganhou | 0 não }. */
+  const sgn = v => v > 0 ? 1 : v < 0 ? -1 : 0;
+  const hash36 = s => Math.floor(rng(s)() * 4294967296).toString(36).padStart(7, "0");
+  const b64u = bytes => { let s = ""; bytes.forEach(b => { s += String.fromCharCode(b); }); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
+  const unb64u = str => { str = str.replace(/-/g, "+").replace(/_/g, "/"); while (str.length % 4) str += "="; const bin = atob(str); return Uint8Array.from(bin, c => c.charCodeAt(0)); };
+  /* Baralha os bytes para o link não se ler à primeira (não é segurança: quem souber, consegue falsificá-lo). */
+  const mask = bytes => { const r = rng("sala-de-espera:duelo"); return bytes.map(b => b ^ (r() * 256 | 0)); };
+  const nameKey = n => String(n || "").trim().toLocaleLowerCase("pt-PT");
+  const duel = {
+    newSeed: () => (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, 10),
+    boardId: (game, d, b) => hash36("board|" + game + "|" + d + "|" + b),
+    encode(game, x) {
+      const json = JSON.stringify([1, x.d, x.b, String(x.n).slice(0, 16), Math.round(x.s) || 0, Math.round(x.t) || 0, Math.round(x.p) || 0, x.w ? 1 : 0]);
+      return hash36(game + "|" + json).slice(0, 4) + b64u(mask(new TextEncoder().encode(json)));
+    },
+    decode(game, code) {
+      try {
+        const chk = code.slice(0, 4), json = new TextDecoder().decode(mask(unb64u(code.slice(4))));
+        if (hash36(game + "|" + json).slice(0, 4) !== chk) return null;
+        const a = JSON.parse(json), num = v => typeof v === "number" && isFinite(v) && v >= 0 && v < 1e8;
+        if (!Array.isArray(a) || a[0] !== 1 || typeof a[1] !== "string" || typeof a[2] !== "string" || typeof a[3] !== "string" || !a[3].trim() || a[2].length > 400 || ![a[4], a[5], a[6]].every(num)) return null;
+        return { g: game, d: a[1], b: a[2], n: a[3].trim().slice(0, 16), s: a[4], t: a[5], p: a[6], w: a[7] ? 1 : 0, bid: duel.boardId(game, a[1], a[2]) };
+      } catch (e) { return null; }
+    },
+    url: (game, x) => SITE + "#/duelo/" + game + "/" + duel.encode(game, x),
+    data: () => Object.assign({ mine: {}, seen: {}, rivals: {}, recent: [] }, store.get("duelos", {})),
+    mine: bid => duel.data().mine[bid] || null,
+    /* Quem ganhou: mais pontos; depois mais progresso; depois menos tempo (nos jogos em que o tempo conta). */
+    cmp(game, a, b) {
+      const g = gameById(game) || {};
+      if (a.s !== b.s) return sgn(a.s - b.s);
+      if ((a.p || 0) !== (b.p || 0)) return sgn((a.p || 0) - (b.p || 0));
+      if (g.duelTime && a.s > 0 && a.t !== b.t) return sgn(b.t - a.t);
+      return 0;
+    },
+    /* Regista o resultado contra este rival (cada tabuleiro conta uma vez por rival). */
+    record(D, me) {
+      const all = duel.data(), k = D.bid + "|" + nameKey(D.n);
+      if (all.seen[k] != null) return { r: all.seen[k].r, fresh: false };
+      const r = duel.cmp(D.g, me, D);
+      all.seen[k] = { r, at: Date.now() };
+      const rv = all.rivals[nameKey(D.n)] || (all.rivals[nameKey(D.n)] = { name: D.n, w: 0, l: 0, e: 0 });
+      rv.name = D.n; rv.last = Date.now(); r > 0 ? rv.w++ : r < 0 ? rv.l++ : rv.e++;
+      all.recent.unshift({ g: D.g, d: D.d, n: D.n, r, me: me.s, opp: D.s, at: Date.now() });
+      all.recent = all.recent.slice(0, 30);
+      /* Não deixa a lista crescer sem fim. */
+      const ks = Object.keys(all.seen); if (ks.length > 400) ks.sort((a, b) => all.seen[a].at - all.seen[b].at).slice(0, ks.length - 400).forEach(x => delete all.seen[x]);
+      store.set("duelos", all);
+      return { r, fresh: true };
+    },
+    saveMine(bid, me) {
+      const all = duel.data(); all.mine[bid] = Object.assign({}, me, { at: Date.now() });
+      const ks = Object.keys(all.mine); if (ks.length > 200) ks.sort((a, b) => all.mine[a].at - all.mine[b].at).slice(0, ks.length - 200).forEach(x => delete all.mine[x]);
+      store.set("duelos", all);
+    },
+    label(game, d) { const g = gameById(game) || {}; return g.duelLabel ? g.duelLabel(d) : ((g.diffs || []).find(x => x.id === d) || { label: d }).label; },
+    line(game, r) {
+      const g = gameById(game) || {};
+      if (g.duelText) return g.duelText(r);
+      return r.w ? fmtTime(r.t) : (g.dailyLost || "Sem vitória") + (r.t ? " · " + fmtTime(r.t) : "");
+    },
+    /* Etiqueta mostrada no jogo durante o duelo. */
+    tag(D) { return el("div", { class: "mode-tag duel-tag" }, SWORDS + "Duelo com " + esc(D.n) + " · " + esc(duel.label(D.g, D.d)) + "<span>Para bater: " + fmtNum(D.s) + " pts</span>"); },
+    /* Pede o nome (se ainda não houver) e depois partilha o link. */
+    withName(then) {
+      if (settings.name) return then(settings.name);
+      const box = el("div", { class: "field col" }, '<label for="duel-name">O teu nome no duelo</label>');
+      const inp = el("input", { id: "duel-name", class: "input", maxlength: "16", autocomplete: "nickname", placeholder: "Por exemplo: Rui" });
+      box.appendChild(inp);
+      box.appendChild(el("p", { class: "hint" }, "Aparece a quem receber o link, junto do teu resultado."));
+      modal.open({ title: "Quem desafia?", body: box, actions: [{ label: "Cancelar" }, { label: "Criar link", primary: true, onClick: () => {
+        const n = inp.value.trim().slice(0, 16); if (!n) { inp.focus(); toast("Escreve um nome."); return false; }
+        setSetting("name", n); modal.close(true); then(n); return false;
+      } }] });
+    },
+    /* Desafiar a partir de um jogo acabado: x = { d, b, s, t, p, w } */
+    challenge(game, x) {
+      const g = gameById(game) || {};
+      duel.withName(n => {
+        const bid = duel.boardId(game, x.d, x.b), me = { s: x.s, t: x.t, p: x.p || 0, w: x.w ? 1 : 0 };
+        duel.saveMine(bid, me);
+        const link = duel.url(game, Object.assign({}, x, { n }));
+        const text = "Desafio-te para um duelo de " + g.name + " (" + duel.label(game, x.d) + ") na Sala de Espera. Fiz " + fmtNum(x.s) + " pts (" + duel.line(game, me) + "). Consegues melhor?";
+        sendLink("Desafiar", text, link, "Manda este link a quem quiseres desafiar. Quem o abrir joga o mesmo tabuleiro.");
+      });
+    },
+    /* Devolver: manda o meu resultado no mesmo tabuleiro a quem me desafiou. */
+    giveBack(D, me) {
+      const g = gameById(D.g) || {};
+      duel.withName(n => {
+        const r = duel.cmp(D.g, me, D);
+        const link = duel.url(D.g, { d: D.d, b: D.b, n, s: me.s, t: me.t, p: me.p, w: me.w });
+        const text = "Joguei o teu duelo de " + g.name + " (" + duel.label(D.g, D.d) + "): fiz " + fmtNum(me.s) + " pts e tu " + fmtNum(D.s) + ". " + (r > 0 ? "Ganhei eu." : r < 0 ? "Ganhaste tu." : "Empate.") + " Vê o resultado aqui:";
+        sendLink("Devolver desafio", text, link, "Quem te desafiou vê a comparação ao abrir o link, sem ter de jogar outra vez.");
+      });
+    }
+  };
+  const SWORDS = '<svg viewBox="0 0 24 24"><path d="M14.5 17.5L3 6V3h3l11.5 11.5"/><path d="M13 19l6-6M16 16l4 4M19 21l2-2"/><path d="M14.5 6.5L18 3h3v3l-3.5 3.5"/><path d="M5 14l4 4M7 17l-3 3M3 19l2 2"/></svg>';
+  /* No telemóvel abre logo a folha de partilha; no PC mostra o link com Copiar. */
+  function sendLink(title, text, link, hint) {
+    const full = text + "\n" + link;
+    if (navigator.share && matchMedia("(pointer: coarse)").matches) {
+      navigator.share({ text: full }).catch(e => { if (!e || e.name !== "AbortError") showLink(); });
+      return;
+    }
+    showLink();
+    function showLink() {
+      const box = el("div", { class: "share-prev" });
+      box.appendChild(el("p", { class: "hint" }, esc(hint)));
+      const inp = el("input", { class: "input duel-link", readonly: true, value: link, "aria-label": "Link do duelo" });
+      inp.addEventListener("focus", () => inp.select());
+      box.appendChild(inp);
+      box.appendChild(el("pre", { class: "share-text" }, esc(full)));
+      const acts = [];
+      if (navigator.share) acts.push({ label: "Partilhar…", close: false, onClick: () => { navigator.share({ text: full }).catch(() => {}); } });
+      acts.push({ label: "Copiar link", close: false, onClick: () => { navigator.clipboard.writeText(link).then(() => toast("Link copiado."), () => { inp.focus(); toast("Seleciona o link e copia-o."); }); } });
+      acts.push({ label: "Copiar mensagem", primary: true, close: false, onClick: () => { copyText(full); } });
+      modal.open({ title, body: box, className: "share", actions: acts });
+    }
+  }
+  /* Bloco "Tu vs Nome" */
+  function duelVs(D, me, r) {
+    const side = (who, x, cls) => '<div class="dv ' + cls + '"><small>' + esc(who) + '</small><b>' + fmtNum(x.s) + '<i>pts</i></b><span>' + esc(duel.line(D.g, x)) + "</span></div>";
+    return '<div class="duel-vs">' + side("Tu", me, "me" + (r > 0 ? " win" : "")) + '<div class="dv-x" aria-hidden="true">vs</div>' + side(D.n, D, "opp" + (r < 0 ? " win" : "")) + "</div>" +
+      '<div class="badge' + (r < 0 ? " muted" : "") + '">' + (r > 0 ? "Ganhaste o duelo" : r < 0 ? "Ganhou " + esc(D.n) : "Empate") + "</div>";
+  }
+  /* Abrir um link de duelo. Devolve true se o jogo deve começar (senão mostra a comparação ou um erro). */
+  function openDuel(game, code) {
+    const g = gameById(game);
+    const D = g && g.duel ? duel.decode(game, code) : null;
+    if (!D || (g.duelOk && !g.duelOk(D))) {
+      modal.open({ title: "Link de duelo inválido", body: "<p>Este link está incompleto ou foi alterado. Pede a quem o mandou que o envie outra vez.</p>", actions: [{ label: "Fechar", primary: true }] });
+      return null;
+    }
+    const mine = duel.mine(D.bid);
+    if (!mine) return D;
+    /* Já joguei este tabuleiro (ou fui eu que desafiei): mostra logo a comparação. */
+    if (nameKey(D.n) === nameKey(settings.name) && mine.s === D.s && mine.t === D.t) {
+      modal.open({ title: "Este desafio é teu", body: "<p>É o link que criaste. Manda-o a quem quiseres desafiar: quem o abrir joga o mesmo tabuleiro.</p>", actions: [{ label: "Fechar", primary: true }] });
+      return null;
+    }
+    const { r, fresh } = duel.record(D, mine);
+    const box = el("div", { class: "result" });
+    box.innerHTML = '<p class="duel-head">' + esc(g.name) + " · " + esc(duel.label(game, D.d)) + "</p>" + duelVs(D, mine, r) +
+      '<p class="hint">' + (fresh ? "Resultado guardado nos Rivais." : "Este duelo já estava nos Rivais.") + "</p>";
+    modal.open({ title: "Duelo com " + D.n, body: box, actions: [{ label: "Ver rivais", onClick: () => { setTimeout(() => showRanking(null, null, null, "rivals"), 0); } }, { label: "Jogar " + g.name, primary: true, onClick: () => { Sala.go && Sala.go(game); } }] });
+    if (fresh && r > 0) { sound.win(); fx.confetti(); }
+    return null;
+  }
+  /* Fim de um jogo de duelo: não entra no ranking nem nas estatísticas, só nos Rivais. */
+  function finishDuel(o) {
+    const D = o.duel, g = gameById(D.g) || {};
+    const me = { s: Math.round(o.score) || 0, t: o.time || 0, p: o.progress || 0, w: o.won === false ? 0 : 1 };
+    duel.saveMine(D.bid, me);
+    const { r } = duel.record(D, me);
+    const box = el("div", { class: "result" });
+    box.innerHTML = '<p class="duel-head">' + esc(g.name) + " · " + esc(duel.label(D.g, D.d)) + "</p>" + duelVs(D, me, r) +
+      '<div class="breakdown">' + (o.breakdown || []).map(x => '<div><span>' + esc(x[0]) + '</span><span>' + esc(x[1]) + '</span></div>').join("") + "</div>";
+    modal.open({
+      title: r > 0 ? "Ganhaste o duelo" : r < 0 ? "Duelo perdido" : "Empate",
+      body: box,
+      actions: [
+        { label: "Rivais", onClick: () => { setTimeout(() => showRanking(null, null, null, "rivals"), 0); } },
+        { label: "Devolver desafio", primary: true, close: false, onClick: () => { duel.giveBack(D, me); } }
+      ]
+    });
+    if (r > 0) { sound.win(); vibrate([30, 60, 30, 60, 80]); fx.confetti(); } else { sound.line(); vibrate(30); }
+    return { pos: 0, id: null };
+  }
+
   /* ---------- Fim de jogo: pontuação, ranking e janela de resultado ---------- */
   function finish(o) {
     /* o: { game, diff, diffLabel, title, score, time, breakdown:[[rótulo, valor]], extra, onNew,
             won (false = jogo perdido ou terminado), daily (data do desafio), practice (repetição que não conta),
-            share: { text, lines, grid } } */
+            share: { text, lines, grid },
+            duel (jogo de duelo, com progress para o desempate), challenge: { d, b, p } (dá para desafiar com este tabuleiro) } */
+    if (o.duel) return finishDuel(o);
     const g = gameById(o.game) || {}, won = o.won !== false, unit = o.unit || "pts";
     const counts = !o.practice;
     const res = counts && o.score > 0 ? ranking.add(o.game, o.daily ? "dia" : o.diff, { name: settings.name || "Eu", score: o.score, time: o.time, extra: Object.assign({}, o.extra || {}, o.daily ? { day: o.daily } : {}) }) : { pos: 0, id: null };
@@ -388,7 +564,12 @@
     const card = shareImage(sd);
     const bShare = el("button", { class: "btn block share-btn", type: "button" }, ui.ICON.share + "Partilhar resultado");
     bShare.onclick = () => { saveName(); share(sd, card); };
-    box.appendChild(bShare);
+    if (o.challenge && g.duel && !o.daily) {
+      /* Desafiar alguém para o mesmo tabuleiro */
+      const bDuel = el("button", { class: "btn block share-btn", type: "button" }, SWORDS + "Desafiar");
+      bDuel.onclick = () => { saveName(); duel.challenge(o.game, { d: o.challenge.d, b: o.challenge.b, s: o.score, t: o.time, p: o.challenge.p || 0, w: won }); };
+      const pair = el("div", { class: "res-btns" }); pair.append(bShare, bDuel); box.appendChild(pair);
+    } else box.appendChild(bShare);
     modal.open({
       title: o.title || "Ganhaste",
       body: box,
@@ -433,20 +614,34 @@
     };
     let [d, mo] = split(diff || (g && g.lastDiff && g.lastDiff()) || g.diffs[0].id);
     const key = () => g.rankModes && d !== "dia" && d !== "*" ? d + (g.rankModes.find(x => x.id === mo) || g.rankModes[0]).suffix : d;
+    if (view === "rivals") mode = "rivals";
     const box = el("div");
-    const tabs = ui.seg([{ id: "rank", label: "Ranking" }, { id: "stats", label: "Estatísticas" }], mode, id => { mode = id; if (!diffsOf().some(x => x.id === d)) d = g.diffs[0].id; draw(); }, "Ver");
+    const tabs = ui.seg([{ id: "rank", label: "Ranking" }, { id: "stats", label: "Estatísticas" }, { id: "rivals", label: "Rivais" }], mode, id => { mode = id; if (mode !== "rivals" && !diffsOf().some(x => x.id === d)) d = g.diffs[0].id; draw(); }, "Ver");
     tabs.classList.add("tabs");
     const filters = el("div", { class: "rank-filters" });
     const table = el("div");
     const draw = () => {
       filters.innerHTML = "";
+      if (mode === "rivals") { drawRivals(); return; }
       if (!gameId) { const sg = ui.seg(ready.map(x => ({ id: x.id, label: x.name })), g.id, id => { g = gameById(id); if (!diffsOf().some(x => x.id === d)) d = g.diffs[0].id; mo = g.rankModes ? g.rankModes[0].id : null; draw(); }, "Jogo"); sg.classList.add("wrap"); filters.appendChild(sg); }
       const ds = diffsOf();
       if (ds.length > 1) { const sd = ui.seg(ds, d, id => { d = id; draw(); }, "Dificuldade"); if (ds.length > 3) sd.classList.add("wrap"); filters.appendChild(sd); }
       if (g.rankModes && d !== "dia" && d !== "*") filters.appendChild(ui.seg(g.rankModes, mo, id => { mo = id; drawTable(); }, "Modo"));
       drawTable();
     };
-    const drawTable = () => mode === "stats" ? drawStats() : drawRank();
+    const drawTable = () => mode === "stats" ? drawStats() : mode === "rivals" ? drawRivals() : drawRank();
+    /* Rivais: vitórias, derrotas e empates por nome, e os últimos duelos (de todos os jogos). */
+    const drawRivals = () => {
+      const all = duel.data(), list = Object.values(all.rivals).sort((a, b) => (b.w + b.l + b.e) - (a.w + a.l + a.e) || (b.last || 0) - (a.last || 0));
+      if (!list.length) { table.innerHTML = '<p class="empty">Ainda não tens rivais.<br>No fim de um jogo, toca em <b>Desafiar</b> e manda o link a alguém.</p>'; return; }
+      const res = r => r > 0 ? '<span class="dr win">Ganhaste</span>' : r < 0 ? '<span class="dr">Perdeste</span>' : '<span class="dr">Empate</span>';
+      table.innerHTML = '<table class="rank rivals"><thead><tr><th>Rival</th><th class="pts">V</th><th class="pts">D</th><th class="pts">E</th></tr></thead><tbody>' +
+        list.slice(0, 20).map(x => "<tr><td>" + esc(x.name) + '</td><td class="pts">' + x.w + '</td><td class="pts">' + x.l + '</td><td class="pts">' + x.e + "</td></tr>").join("") + "</tbody></table>" +
+        '<h4 class="duel-recent-h">Últimos duelos</h4><ul class="duel-recent">' + all.recent.slice(0, 10).map(x => {
+          const gg = gameById(x.g);
+          return "<li><span><b>" + esc(gg ? gg.name : x.g) + "</b> com " + esc(x.n) + "<small>" + fmtNum(x.me) + " vs " + fmtNum(x.opp) + " pts · " + esc(daily.label(ymd(new Date(x.at)))) + "</small></span>" + res(x.r) + "</li>";
+        }).join("") + "</ul>" + '<p class="hint st-note">Os duelos não contam para o ranking nem para as estatísticas.</p>';
+    };
     const drawRank = () => {
       const l = ranking.list(g.id, key()), isDay = d === "dia";
       if (!l.length) { table.innerHTML = '<p class="empty">' + (isDay ? "Ainda não fizeste nenhum desafio do dia.<br>O de hoje está à espera no menu." : (g.emptyText || "Ainda não há pontuações nesta dificuldade.<br>A primeira é tua.")) + "</p>"; return; }
@@ -518,5 +713,5 @@
     modal.open({ title: "Definições", body: box, onClose: () => setSetting("name", inp.value.trim().slice(0, 16)), actions: [{ label: "Fechar", primary: true }] });
   }
 
-  window.Sala = { $, el, esc, fmtTime, fmtNum, shuffle, clamp, rng, SITE, store, settings, setSetting, motion, sound, vibrate, toast, modal, fx, ranking, daily, stats, share, shareImage, copyText, registerGame, games, gameById, ui, finish, showRanking, showHelp, showSettings };
+  window.Sala = { duel, openDuel, $, el, esc, fmtTime, fmtNum, shuffle, clamp, rng, SITE, store, settings, setSetting, motion, sound, vibrate, toast, modal, fx, ranking, daily, stats, share, shareImage, copyText, registerGame, games, gameById, ui, finish, showRanking, showHelp, showSettings };
 })();
