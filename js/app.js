@@ -34,7 +34,7 @@
     if (!list.length) { box.hidden = true; return; }
     box.hidden = false;
     const states = list.map(dailyState), done = states.filter(s => s.done).length;
-    const head = el("div", { class: "daily-head" }, '<span class="ico" aria-hidden="true">' + ui.ICON.cal + '</span><div><h2>Desafio do dia</h2><p>' + esc(daily.long()) + " · " + (done === list.length ? "Feito. Volta amanhã." : "O mesmo para toda a gente. Só a primeira tentativa conta.") + "</p></div>");
+    const head = el("div", { class: "daily-head" }, '<span class="ico" aria-hidden="true">' + ui.ICON.cal + '</span><div><h2>Desafio do dia</h2><p>' + esc(daily.long().replace(/^./, c => c.toUpperCase())) + ". " + (done === list.length ? "Feito. Volta amanhã." : "Igual para todos; só a primeira tentativa conta.") + "</p></div>");
     if (done) {
       const b = el("button", { class: "btn", type: "button", "aria-label": "Partilhar o desafio do dia" }, ui.ICON.share + "<span>Partilhar</span>");
       b.onclick = () => shareDay(list, states);
@@ -44,7 +44,7 @@
     list.forEach((g, k) => {
       const s = states[k];
       const b = el("button", { class: "dg" + (s.done ? " done" : ""), type: "button", "aria-label": g.name + " do dia, " + s.text });
-      b.innerHTML = '<span class="art">' + g.art + "</span><b>" + esc(g.name) + '</b><span class="chip ' + s.cls + '">' + esc(s.text) + "</span>";
+      b.innerHTML = '<span class="art">' + g.art + '</span><span class="dg-txt"><b>' + esc(g.name) + '</b><span class="chip ' + s.cls + '">' + esc(s.text) + "</span></span>";
       b.onclick = () => { sound.tap(); go(g.id + "/dia"); };
       row.appendChild(b);
     });
@@ -61,21 +61,40 @@
     Sala.share({ title: "Desafio do dia", sub: daily.label(ds), big: fmtNum(total), unit: "pts", lines, text });
   }
 
-  /* ---------- Menu ---------- */
+  /* ---------- Menu ----------
+     Secções com cartões quadrados (2 colunas no telemóvel). Jogos que não estejam
+     em nenhuma secção vão para "Outros", para nunca desaparecerem do menu. */
+  const SECTIONS = [
+    { id: "puz", label: "Puzzles", ids: ["sudoku", "minas", "palavras", "soli"] },
+    { id: "arc", label: "Arcada", ids: ["g2048", "cobra"] },
+    { id: "cas", label: "Casino", ids: ["blackjack", "roleta"] }
+  ];
+  function tile(g, sec, soon) {
+    const art = (Sala.menuArt && Sala.menuArt[g.id]) ? Sala.menuArt[g.id]() : '<span class="mn-small">' + g.art + "</span>";
+    const meta = soon ? [{ text: "Em breve", cls: "yellow" }] : (g.meta ? g.meta() : []);
+    const chip = meta[0] ? '<span class="chip mn-chip ' + (meta[0].cls || "") + '">' + esc(meta[0].text) + "</span>" : "";
+    const b = el("button", { class: "mn-tile mn-" + sec, type: "button", "aria-label": g.name + (meta.length ? ", " + meta.map(m => m.text).join(", ") : "") });
+    if (soon) b.disabled = true;
+    b.innerHTML = '<span class="mn-art">' + art + "</span>" + chip + '<span class="mn-txt"><b>' + esc(g.name) + '</b><span class="mn-desc">' + esc(g.desc) + "</span></span>";
+    if (!soon) b.onclick = () => { sound.tap(); go(g.id); };
+    return b;
+  }
   function drawMenu() {
     drawDaily();
     const box = $("m-cards"); box.innerHTML = "";
-    games.filter(g => g.ready).forEach(g => {
-      const b = el("button", { class: "card", type: "button" });
-      const chips = (g.meta ? g.meta() : []).map(c => '<span class="chip ' + (c.cls || "") + '">' + esc(c.text) + "</span>").join("");
-      b.innerHTML = '<span class="art">' + g.art + "</span><div><h2>" + esc(g.name) + "</h2><p>" + esc(g.desc) + '</p></div><div class="meta">' + (chips || '<span class="chip">Jogar</span>') + "</div>";
-      b.onclick = () => { sound.tap(); go(g.id); };
-      box.appendChild(b);
-    });
-    SOON.forEach(g => {
-      const b = el("button", { class: "card", type: "button", disabled: true, "aria-label": g.name + ", em breve" });
-      b.innerHTML = '<span class="art">' + g.art + "</span><div><h2>" + esc(g.name) + "</h2><p>" + esc(g.desc) + '</p></div><div class="meta"><span class="chip yellow">Em breve</span></div>';
-      box.appendChild(b);
+    const ready = games.filter(g => g.ready), used = new Set();
+    const secs = SECTIONS.map(s => ({ ...s, list: s.ids.map(gameById).filter(g => g && g.ready) }));
+    secs.forEach(s => s.list.forEach(g => used.add(g.id)));
+    const rest = ready.filter(g => !used.has(g.id));
+    if (rest.length || SOON.length) secs.push({ id: "out", label: "Outros", list: rest, soon: SOON });
+    secs.forEach(s => {
+      if (!s.list.length && !(s.soon && s.soon.length)) return;
+      const sec = el("section", { class: "mn-shelf mn-shelf-" + s.id, "aria-labelledby": "mn-h-" + s.id });
+      sec.appendChild(el("h2", { class: "mn-shelf-title", id: "mn-h-" + s.id }, esc(s.label)));
+      const grid = el("div", { class: "mn-tiles" });
+      s.list.forEach(g => grid.appendChild(tile(g, s.id)));
+      (s.soon || []).forEach(g => grid.appendChild(tile(g, s.id, true)));
+      sec.appendChild(grid); box.appendChild(sec);
     });
   }
 

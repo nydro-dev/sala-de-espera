@@ -71,7 +71,7 @@ h1,h2,h3{margin:0;line-height:1.15}
 .btn.ghost{background:transparent}
 .btn.block{width:100%}
 @media (hover:none){.btn:hover,.icon-btn:hover{border-color:var(--line)}.btn.primary:hover{filter:none}}
-:root.anim .btn,:root.anim .icon-btn,:root.anim .card{transition:transform .12s ease,border-color .12s,background-color .15s}
+:root.anim .btn,:root.anim .icon-btn{transition:transform .12s ease,border-color .12s,background-color .15s}
 :root.anim .btn:active:not(:disabled),:root.anim .icon-btn:active{transform:scale(.96)}
 
 /* Seletor segmentado (dificuldade, tema) */
@@ -86,7 +86,8 @@ h1,h2,h3{margin:0;line-height:1.15}
 .switch[aria-checked="true"]::after{transform:translateX(20px);background:#fff}
 
 /* ---------- Menu ---------- */
-.menu{display:flex;flex-direction:column;gap:22px}
+.menu{display:flex;flex-direction:column;gap:18px}
+@media (min-width:900px){.menu{gap:24px}}
 .menu-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .brand{display:flex;align-items:center;gap:12px;min-width:0}
 .brand h1{font-size:1.45rem;font-weight:900;letter-spacing:-.015em}
@@ -97,25 +98,54 @@ h1,h2,h3{margin:0;line-height:1.15}
 .brand-mark i.dot{background:radial-gradient(circle,var(--yellow) 0 40%,color-mix(in srgb,var(--bg) 22%,var(--ink)) 45%)}
 .head-actions{display:flex;gap:8px}
 
-.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));gap:12px}
-.card{position:relative;display:flex;flex-direction:column;gap:10px;text-align:left;padding:16px;border-radius:var(--r);border:1px solid var(--line);background:var(--surface);color:var(--ink);box-shadow:var(--shadow);min-height:150px}
-.card:not(:disabled):hover{border-color:var(--blue);transform:translateY(-2px)}
-.card .art{width:56px;height:56px;border-radius:14px;display:grid;place-items:center;background:var(--blue-soft)}
-.card .art svg{width:36px;height:36px}
-.card h2{font-size:1.15rem;font-weight:700}
-.card p{margin:0;color:var(--muted);font-size:.88rem}
-.card .meta{margin-top:auto;display:flex;gap:6px;flex-wrap:wrap}
 .chip{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:999px;font-size:.75rem;font-weight:700;background:var(--sunken);color:var(--muted)}
 .chip.blue{background:var(--blue);color:var(--on-accent)}
 .chip.yellow{background:var(--yellow);color:var(--on-accent)}
-.card:disabled{cursor:default;box-shadow:none;background:var(--surface-2);min-height:0;flex-direction:row;align-items:center;gap:12px;padding:12px 14px}
-.card:disabled .art{width:42px;height:42px;border-radius:11px;flex:none}
-.card:disabled .art svg{width:26px;height:26px}
-.card:disabled h2{font-size:1rem}
-.card:disabled p{font-size:.82rem}
-.card:disabled .meta{margin:0 0 0 auto;flex:none}
-.card:disabled .art{filter:grayscale(1);opacity:.55}
-.card:disabled h2{color:var(--muted)}
+/* Secções e cartões quadrados (prefixo mn-, para não chocar com as classes dos jogos) */
+.mn-shelves{display:grid;gap:18px}
+.mn-shelf-title{font-size:1.05rem;font-weight:900;letter-spacing:-.01em;margin:0 0 10px 2px}
+.mn-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.mn-tile{
+  --t-bg:var(--blue-soft); --t-ink:var(--ink); --t-sub:var(--muted); --t-edge:color-mix(in srgb,var(--blue) 30%,transparent);
+  position:relative;display:flex;flex-direction:column;aspect-ratio:1;min-width:0;padding:0;overflow:hidden;text-align:left;
+  border-radius:18px;border:1px solid var(--t-edge);background:var(--t-bg);color:var(--t-ink)
+}
+.mn-arc{--t-bg:var(--yellow-soft);--t-edge:color-mix(in srgb,var(--yellow) 55%,transparent)}
+.mn-cas{--t-bg:#1A181D;--t-ink:#F1F1F2;--t-sub:#B8B8B8;--t-edge:color-mix(in srgb,#FFC301 35%,transparent)}
+.mn-out{--t-bg:var(--surface);--t-edge:var(--line)}
+.mn-art{flex:1;min-height:0;display:grid;place-items:center;padding:10px 8px 0}
+.mn-art svg{width:100%;height:100%;display:block}
+.mn-small svg{width:56px;height:56px}
+.mn-txt{display:block;padding:4px 12px 11px}
+.mn-txt b{display:block;font-size:1.06rem;font-weight:900;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mn-desc{display:none}
+.mn-chip{position:absolute;top:8px;left:8px;max-width:calc(100% - 16px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.mn-chip:not(.blue):not(.yellow){background:var(--surface);color:var(--ink)}
+.mn-tile:not(:disabled):hover{border-color:var(--blue)}
+.mn-tile:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.mn-tile:disabled{cursor:default;filter:grayscale(1);opacity:.6}
+:root.anim .mn-tile{transition:transform .12s ease,border-color .12s}
+:root.anim .mn-tile:active:not(:disabled){transform:scale(.97)}
+@media (hover:none){.mn-tile:not(:disabled):hover{border-color:var(--t-edge)}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .mn-cas{--t-bg:#100F12}}
+:root[data-theme="dark"] .mn-cas{--t-bg:#100F12}
+/* A partir de 600 px: 4 por linha, com a Arcada e o Casino lado a lado */
+@media (min-width:600px){
+  .mn-tiles{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .mn-shelves{grid-template-columns:1fr 1fr;column-gap:10px}
+  .mn-shelf-puz,.mn-shelf-out{grid-column:1/-1}
+  .mn-shelf-arc .mn-tiles,.mn-shelf-cas .mn-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+/* No PC: descrição por baixo do nome */
+@media (min-width:900px){
+  .mn-shelves{column-gap:12px;row-gap:22px}
+  .mn-tiles{gap:12px}
+  .mn-tile{aspect-ratio:auto}
+  .mn-art{flex:none;height:150px;padding:14px 14px 0}
+  .mn-txt{padding:8px 16px 16px}
+  .mn-txt b{font-size:1.15rem}
+  .mn-desc{display:block;margin-top:3px;color:var(--t-sub);font-size:.86rem;line-height:1.4}
+}
 .menu-foot{color:var(--muted);font-size:.8rem;text-align:center}
 
 /* ---------- Ecrã de jogo ---------- */
@@ -140,7 +170,8 @@ h1,h2,h3{margin:0;line-height:1.15}
 @media (hover:hover),(pointer:fine){.for-touch{display:none!important}}
 
 @media (min-width:900px){
-  .game-body{grid-template-areas:"board stats" "board controls";grid-template-columns:minmax(0,1fr) 300px;grid-template-rows:auto 1fr;column-gap:28px;align-items:start}
+  .game-body{grid-template-areas:"board stats" "board controls";grid-template-columns:minmax(0,1fr) 320px;grid-template-rows:auto 1fr;column-gap:28px;align-items:start}
+  .controls .seg.wrap button{padding:8px 6px;font-size:.84rem}
   .stats{grid-template-columns:1fr 1fr}
   .controls .hint{text-align:left}
 }
@@ -269,6 +300,9 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 .mgrid{display:grid;gap:2px;width:max-content;margin:0 auto;padding:3px;background:var(--line);border-radius:10px;user-select:none;-webkit-user-select:none;touch-action:manipulation;-webkit-touch-callout:none}
 .mc{width:var(--cs,30px);height:var(--cs,30px);display:flex;align-items:center;justify-content:center;background:var(--cover);border-radius:4px;font-weight:900;font-size:calc(var(--cs,30px)*.56);cursor:pointer;line-height:1;font-variant-numeric:tabular-nums;box-shadow:inset 0 -2px 0 rgba(0,0,0,.08)}
 .mc:hover{background:var(--cover-hi)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .mgrid{background:#0E0D10}:root:not([data-theme="light"]) .mc:not(.o){box-shadow:inset 0 1px 0 rgba(255,255,255,.1),inset 0 -2px 0 rgba(0,0,0,.35)}}
+:root[data-theme="dark"] .mgrid{background:#0E0D10}
+:root[data-theme="dark"] .mc:not(.o){box-shadow:inset 0 1px 0 rgba(255,255,255,.1),inset 0 -2px 0 rgba(0,0,0,.35)}
 .mc.o{background:var(--open);cursor:default;box-shadow:none}
 .mc.cur{outline:2px solid var(--blue);outline-offset:-2px}
 .mc.boom{background:var(--bad)}
@@ -462,7 +496,7 @@ html.cb-lock,html.cb-lock body{overscroll-behavior:none;touch-action:none;overfl
 .st-note{margin-top:12px}
 
 /* ---------- Desafio do dia (menu) ---------- */
-.daily{border-radius:var(--r);border:1px solid color-mix(in srgb,var(--yellow) 55%,var(--line));background:linear-gradient(135deg,var(--yellow-soft),var(--surface) 70%);padding:16px;display:flex;flex-direction:column;gap:12px;box-shadow:var(--shadow)}
+.daily{border-radius:18px;border:1px solid color-mix(in srgb,var(--yellow) 55%,var(--line));background:linear-gradient(135deg,var(--yellow-soft),var(--surface) 70%);padding:14px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--shadow)}
 .daily-head{display:flex;align-items:center;gap:12px}
 .daily-head .ico{width:42px;height:42px;border-radius:12px;background:var(--yellow);color:var(--on-accent);display:grid;place-items:center;flex:none}
 .daily-head .ico svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
@@ -472,11 +506,12 @@ html.cb-lock,html.cb-lock body{overscroll-behavior:none;touch-action:none;overfl
 .daily-head .btn{min-height:38px;padding:0 12px}
 .daily-games{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 @media (min-width:600px){.daily-games{grid-template-columns:repeat(4,minmax(0,1fr))}}
-.dg{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 6px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--surface);color:var(--ink);text-align:center;min-width:0}
+.dg{display:flex;align-items:center;gap:9px;padding:8px 10px 8px 8px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--surface);color:var(--ink);text-align:left;min-width:0}
+.dg-txt{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0}
 .dg:hover{border-color:var(--blue)}
-.dg .art{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;background:var(--blue-soft)}
-.dg .art svg{width:26px;height:26px}
-.dg b{font-size:.92rem;font-weight:700}
+.dg .art{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:var(--blue-soft);flex:none}
+.dg .art svg{width:25px;height:25px}
+.dg b{font-size:.92rem;font-weight:700;line-height:1.1}
 .dg .chip{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dg.done{background:var(--surface-2)}
 .chip.good{background:var(--good);color:#fff}

@@ -212,12 +212,20 @@
     /* Avisos por cima */
     if (S.state === "ready" || S.state === "pause") {
       cx.fillStyle = "rgba(0,0,0,.45)"; cx.fillRect(0, 0, size, size);
+      /* Painel opaco no terço de cima: a cobra nasce a meio e o texto não pode ficar por cima dela. */
+      const touch = matchMedia("(hover:none) and (pointer:coarse)").matches;
+      const sub = touch ? "Desliza o dedo para começar" : "Carrega numa seta para começar";
+      /* Em pausa, vai para a metade oposta à cabeça, para se ver onde a cobra está. */
+      const low = S.state === "pause" && S.snake[0][0] < N / 2;
+      const pw = size * .78, ph = size * .24, px = (size - pw) / 2, py = low ? size * .68 : size * .08, pr = size * .04;
+      cx.fillStyle = "#1A181D"; cx.strokeStyle = "#FFC301"; cx.lineWidth = Math.max(2, size * .006);
+      cx.beginPath(); if (cx.roundRect) cx.roundRect(px, py, pw, ph, pr); else cx.rect(px, py, pw, ph); cx.fill(); cx.stroke();
       cx.fillStyle = "#fff"; cx.textAlign = "center"; cx.textBaseline = "middle";
       cx.font = "900 " + Math.round(size * .075) + "px Roboto,system-ui,sans-serif";
-      cx.fillText(S.state === "pause" ? "Pausa" : "Pronta?", size / 2, size / 2 - size * .05);
+      cx.fillText(S.state === "pause" ? "Pausa" : "Pronta?", size / 2, py + ph * .38);
       cx.font = "500 " + Math.round(size * .042) + "px Roboto,system-ui,sans-serif";
-      const touch = matchMedia("(hover:none) and (pointer:coarse)").matches;
-      cx.fillText(touch ? "Desliza o dedo para começar" : "Carrega numa seta para começar", size / 2, size / 2 + size * .05);
+      cx.fillStyle = "#D0D0D0";
+      cx.fillText(S.state === "pause" ? sub.replace("começar", "continuar") : sub, size / 2, py + ph * .74);
     }
   }
 
