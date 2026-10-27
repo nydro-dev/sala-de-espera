@@ -318,7 +318,7 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 .mc svg{width:64%;height:64%;overflow:visible}
 /* Toque longo nas Minas (prefixo mh-): a casa levanta, um anel enche-se à volta e um balão aparece por cima do dedo.
    O anel e o balão mostram o progresso, por isso enchem mesmo com as animações reduzidas. */
-.mh-ring,.mh-bub{position:fixed;z-index:58;pointer-events:none;opacity:0;animation:mh-in .1s ease 80ms forwards}
+.mh-ring,.mh-bub{position:absolute;z-index:58;pointer-events:none;opacity:0;animation:mh-in .1s ease 80ms forwards}
 .mh-ring svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
 .mh-ring rect,.mh-bub .mh-fill{fill:none;stroke:var(--blue);stroke-width:3.5;stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:100;animation:mh-fill var(--hold,350ms) linear forwards}
 .mh-bub{width:64px;height:64px;border-radius:50%;background:var(--surface);box-shadow:0 8px 22px rgba(0,0,0,.28);display:grid;place-items:center}
@@ -333,7 +333,7 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 @keyframes mh-out{0%{opacity:1}60%{opacity:1}100%{opacity:0}}
 .mc.mh-lift{position:relative;z-index:2;outline:2px solid var(--blue);outline-offset:-2px}
 :root.anim .mc.mh-lift{transform:scale(1.22);box-shadow:0 6px 14px rgba(0,0,0,.3);transition:transform .2s cubic-bezier(.3,1.6,.6,1)}
-:root.anim .mh-bub{transform-origin:50% 100%;animation:mh-in .1s ease 80ms forwards,mh-grow .22s cubic-bezier(.3,1.5,.6,1) 80ms both}
+:root.anim .mh-bub{animation:mh-in .1s ease 80ms forwards,mh-grow .22s cubic-bezier(.3,1.5,.6,1) 80ms both}
 :root.anim .mh-bub.done{animation:mh-out .26s ease forwards}
 :root.anim .mh-bub.done .mh-ico{animation:mh-pop .26s ease}
 :root.anim .mc.mh-pop{position:relative;z-index:2;animation:mh-pop .3s ease}

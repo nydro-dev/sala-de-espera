@@ -248,17 +248,32 @@
   const HOLD_MS = 350, HOLD_SLOP = 10; /* tempo do toque longo e tremor tolerado, em píxeis */
   const UNFLAG = '<svg viewBox="0 0 20 20"><path d="M5.5 2.5v15" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"/><path d="M6.5 3h9.5l-2.6 3.8L16 10.6H6.5z" fill="var(--yellow)" stroke="var(--ink)" stroke-width="1.2" stroke-linejoin="round" opacity=".45"/><path d="M2.5 17.5l15-15" stroke="var(--bad)" stroke-width="2.2" stroke-linecap="round"/></svg>';
   const OPEN = '<svg viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3l13 7.5-5.8 1.6L10.5 18z"/><path d="M13.4 12.3L18 17"/></svg>';
+  /* Com o ecrã ampliado (dois dedos), o telemóvel separa a página da parte que se vê. Por isso tudo é
+     posto em coordenadas da página (position: absolute, a partir das diferenças entre retângulos, que
+     não dependem da janela usada) e o espaço livre mede-se na parte visível (visualViewport). O balão
+     encolhe na mesma proporção da ampliação, para se ver sempre do mesmo tamanho. */
   function holdShow(t, i) {
-    const r = t.getBoundingClientRect(), B = 64, gap = 44;
+    const r = t.getBoundingClientRect(), de = document.documentElement.getBoundingClientRect();
+    const x0 = r.left - de.left, y0 = r.top - de.top;
+    const vv = window.visualViewport, s = vv && vv.scale > 0 ? vv.scale : 1;
+    const vl = vv ? vv.pageLeft : scrollX, vt = vv ? vv.pageTop : scrollY, vw = vv ? vv.width : innerWidth;
+    const B = 64, bv = B / s, gv = 44 / s, m = 8 / s;
     const ico = M.flagMode ? OPEN : M.flag[i] ? UNFLAG : FLAG;
     const ring = el("div", { class: "mh-ring", "aria-hidden": "true" }, '<svg viewBox="0 0 100 100" preserveAspectRatio="none"><rect x="2" y="2" width="96" height="96" rx="16" pathLength="100" vector-effect="non-scaling-stroke"/></svg>');
-    Object.assign(ring.style, { left: r.left - 5 + "px", top: r.top - 5 + "px", width: r.width + 10 + "px", height: r.height + 10 + "px" });
-    /* O balão vai por cima do dedo; sem espaço em cima, vai para o lado. */
-    let bx = r.left + r.width / 2 - B / 2, by = r.top - gap - B;
-    if (by < 8) { by = r.top + r.height / 2 - B / 2; bx = r.left - gap / 2 - B; if (bx < 8) bx = r.right + gap / 2; }
-    bx = clamp(bx, 8, innerWidth - B - 8);
+    Object.assign(ring.style, { left: x0 - 5 + "px", top: y0 - 5 + "px", width: r.width + 10 + "px", height: r.height + 10 + "px" });
+    /* O balão vai por cima do dedo; sem espaço à vista em cima, vai para o lado. */
+    let left, top, origin;
+    if (y0 - gv - bv - vt >= m) {
+      const ax = clamp(x0 + r.width / 2, vl + m + bv / 2, vl + vw - m - bv / 2);
+      left = ax - B / 2; top = y0 - gv - B; origin = "50% 100%";
+    } else {
+      const ay = y0 + r.height / 2;
+      if (x0 - gv / 2 - bv - vl >= m) { left = x0 - gv / 2 - B; origin = "100% 50%"; }
+      else { left = x0 + r.width + gv / 2; origin = "0% 50%"; }
+      top = ay - B / 2;
+    }
     const bub = el("div", { class: "mh-bub", "aria-hidden": "true" }, '<svg class="mh-prog" viewBox="0 0 64 64"><circle class="mh-track" cx="32" cy="32" r="29"/><circle class="mh-fill" cx="32" cy="32" r="29" pathLength="100"/></svg><span class="mh-ico">' + ico + "</span>");
-    Object.assign(bub.style, { left: bx + "px", top: by + "px" });
+    Object.assign(bub.style, { left: left + "px", top: top + "px", transformOrigin: origin, scale: String(1 / s) });
     [ring, bub].forEach(n => n.style.setProperty("--hold", HOLD_MS + "ms"));
     document.body.append(ring, bub);
     t.classList.add("mh-lift");
