@@ -18,10 +18,7 @@
   }
 
   /* ---------- Jogos que vêm a seguir ---------- */
-  const SOON = [
-    { name: "Solitário", desc: "O clássico das cartas, com sete colunas.", art: '<svg viewBox="0 0 36 36"><rect x="5" y="4" width="18" height="25" rx="3" fill="var(--cover)" transform="rotate(-10 14 16)"/><rect x="13" y="7" width="18" height="25" rx="3" fill="var(--surface)" stroke="var(--ink)" stroke-width="1.5"/><path d="M22 14c-2.5 3-4 4.4-4 6a2 2 0 0 0 4 .3 2 2 0 0 0 4-.3c0-1.6-1.5-3-4-6z" fill="var(--ink)"/></svg>' },
-    { name: "Cobra", desc: "Comer, crescer e não bater em nada.", art: '<svg viewBox="0 0 36 36"><path d="M6 28h12V18h12V8" fill="none" stroke="var(--blue)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="30" cy="8" r="3.5" fill="var(--ink)"/><circle cx="9" cy="10" r="3" fill="var(--yellow)"/></svg>' }
-  ];
+  const SOON = []; /* jogos por fazer: { name, desc, art } */
 
   /* ---------- Menu ---------- */
   function drawMenu() {

@@ -1,10 +1,11 @@
-// Guarda a app para funcionar offline. Sobe a versão a cada publicação (sala-v6 → sala-v7).
-const VERSION = "sala-v6";
+// Guarda a app para funcionar offline. Sobe a versão a cada publicação (sala-v7 → sala-v8).
+const VERSION = "sala-v7";
 const CORE = [
   "./", "index.html", "manifest.webmanifest",
   "css/base.css", "js/core.js", "js/app.js", "js/games/sudoku.js", "js/games/minas.js",
   "js/games/g2048.js", "js/games/palavras.js", "js/data/validas.js", "js/data/solucoes.js",
   "js/games/casino.js", "js/games/blackjack.js", "js/games/roleta.js",
+  "js/games/solitario.js", "js/games/cobra.js",
   "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png"
 ];
 

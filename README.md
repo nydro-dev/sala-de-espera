@@ -9,7 +9,8 @@ Jogos curtos numa app web instalável (PWA), feita para jogar nos intervalos. Fu
 - **Palavras**: descobrir uma palavra portuguesa de cinco letras em seis tentativas, com palavra do dia (e sequência de dias seguidos) ou jogo livre. Os acentos e o ç aparecem sozinhos.
 - **Blackjack** com seis baralhos: a banca fica com qualquer 17, o blackjack paga 3 para 2, e dá para dobrar e dividir.
 - **Roleta** europeia, de um só zero, com apostas em números, cores, par e ímpar, metades, dúzias e colunas.
-- Em preparação: Solitário e Cobra.
+- **Solitário** clássico de sete colunas, a tirar três cartas do baralho, com toque ou arrastar, desfazer e "completar sozinho".
+- **Cobra** em três velocidades, com ou sem paredes, e uma maçã dourada de vez em quando.
 
 O Blackjack e a Roleta partilham uma banca de fichas virtuais (sem valor real e sem compras), que começa com 1000 fichas. Cada banca, quando fecha, entra no ranking do casino com o maior saldo que atingiu.
 
@@ -32,7 +33,7 @@ No Android, ou no Chrome e no Edge do computador, a opção chama-se "Instalar a
 Sem frameworks nem compilação: o GitHub Pages serve os ficheiros tal como estão.
 
 ## Atualizar
-Depois de alterar ficheiros, subir a versão em `sw.js` (`sala-v6` → `sala-v7`) para os aparelhos já instalados receberem a cópia nova. Se acrescentares ficheiros, junta-os também à lista `CORE`.
+Depois de alterar ficheiros, subir a versão em `sw.js` (`sala-v7` → `sala-v8`) para os aparelhos já instalados receberem a cópia nova. Se acrescentares ficheiros, junta-os também à lista `CORE`.
 
 ## Privacidade
 A app não tem contas, publicidade nem estatísticas, e não envia dados para lado nenhum. Os jogos a meio, as definições e o ranking ficam guardados apenas no armazenamento local do teu browser. O tipo de letra é carregado do Google Fonts na primeira utilização.
@@ -43,4 +44,4 @@ A app não tem contas, publicidade nem estatísticas, e não envia dados para la
 - O resto do código e do grafismo é original.
 
 ## Aviso
-Projeto pessoal e sem fins comerciais, disponibilizado tal como está, sem garantias de qualquer tipo. Os jogos incluídos são de domínio comum: o código, o grafismo e os ícones são originais, sem ligação a nenhuma marca ou produto, incluindo o Minesweeper da Microsoft.
+Projeto pessoal e sem fins comerciais, disponibilizado tal como está, sem garantias de qualquer tipo. Os jogos incluídos são de domínio comum: o código, o grafismo e os ícones são originais, sem ligação a nenhuma marca ou produto, incluindo o Minesweeper e o Solitaire da Microsoft.

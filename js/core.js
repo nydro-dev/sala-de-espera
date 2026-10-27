@@ -274,18 +274,26 @@
     const asked = gameById(gameId);
     if (asked && asked.rankAs) gameId = asked.rankAs;
     let g = gameById(gameId) || ready[0];
-    let d = diff || (g && g.lastDiff && g.lastDiff()) || g.diffs[0].id;
+    /* Jogos com modos (a Cobra: com ou sem paredes) guardam o ranking em "dificuldade + sufixo do modo". */
+    const split = k => {
+      if (!g.rankModes) return [k, null];
+      const m = g.rankModes.find(x => x.suffix && k.endsWith(x.suffix)) || g.rankModes.find(x => !x.suffix) || g.rankModes[0];
+      return [m.suffix ? k.slice(0, -m.suffix.length) : k, m.id];
+    };
+    let [d, mo] = split(diff || (g && g.lastDiff && g.lastDiff()) || g.diffs[0].id);
+    const key = () => g.rankModes ? d + (g.rankModes.find(x => x.id === mo) || g.rankModes[0]).suffix : d;
     const box = el("div");
     const filters = el("div", { class: "rank-filters" });
     const table = el("div");
     const draw = () => {
       filters.innerHTML = "";
-      if (!gameId) filters.appendChild(ui.seg(ready.map(x => ({ id: x.id, label: x.name })), g.id, id => { g = gameById(id); if (!g.diffs.some(x => x.id === d)) d = g.diffs[0].id; draw(); }, "Jogo"));
+      if (!gameId) { const sg = ui.seg(ready.map(x => ({ id: x.id, label: x.name })), g.id, id => { g = gameById(id); if (!g.diffs.some(x => x.id === d)) d = g.diffs[0].id; mo = g.rankModes ? g.rankModes[0].id : null; draw(); }, "Jogo"); sg.classList.add("wrap"); filters.appendChild(sg); }
       if (g.diffs.length > 1) filters.appendChild(ui.seg(g.diffs, d, id => { d = id; drawTable(); }, "Dificuldade"));
+      if (g.rankModes) filters.appendChild(ui.seg(g.rankModes, mo, id => { mo = id; drawTable(); }, "Modo"));
       drawTable();
     };
     const drawTable = () => {
-      const l = ranking.list(g.id, d);
+      const l = ranking.list(g.id, key());
       if (!l.length) { table.innerHTML = '<p class="empty">' + (g.emptyText || "Ainda não há pontuações nesta dificuldade.<br>A primeira é tua.") + "</p>"; return; }
       table.innerHTML = '<table class="rank"><thead><tr><th>#</th><th>Nome</th><th>Tempo</th><th class="pts">' + esc(g.unitLabel || "Pontos") + '</th></tr></thead><tbody>' +
         l.map((e, i) => '<tr' + (e.id === highlightId ? ' class="me"' : "") + '><td class="pos">' + (i + 1) + '</td><td>' + esc(e.name) + '</td><td>' + fmtTime(e.time) + '</td><td class="pts">' + fmtNum(e.score) + '</td></tr>').join("") +
