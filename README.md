@@ -5,7 +5,7 @@ Jogos curtos numa app web instalável (PWA), feita para jogar nos intervalos. Fu
 ## Jogos
 - **Sudoku** com cinco dificuldades, do Iniciante ao Diabólico, sempre com solução única. Cada puzzle é avaliado por um resolvedor lógico, para que a dificuldade corresponda às técnicas que pede. Inclui notas a lápis, desfazer e pistas.
 - **Minas** com tabuleiros de 8×8 a 30×20 (cinco dificuldades). Os tabuleiros largos rodam no telemóvel ao alto e têm lupa para casas do tamanho do dedo. A primeira casa nunca rebenta.
-- **Palavras**: descobrir uma palavra portuguesa de cinco letras em seis tentativas, em jogo livre (o cartão do menu) ou com a palavra do dia, no desafio do dia (com sequência de dias seguidos). Os acentos e o ç aparecem sozinhos.
+- **Palavras**: descobrir uma palavra portuguesa de 4 a 7 letras em seis tentativas, em jogo livre (o cartão do menu, com o tamanho à escolha) ou com a palavra do dia, no desafio do dia (com sequência de dias seguidos; 4 letras à terça, 5 à segunda, quarta e sexta, 6 à quinta e ao sábado, 7 ao domingo). Os acentos e o ç aparecem sozinhos.
 - **Blackjack** com seis baralhos: a banca fica com qualquer 17, o blackjack paga 3 para 2, e dá para dobrar e dividir.
 - **Roleta** europeia, de um só zero, com apostas em números, cores, par e ímpar, metades, dúzias e colunas.
 - **Solitário** clássico de sete colunas, a tirar três cartas do baralho, com toque ou arrastar, desfazer e "completar sozinho".
@@ -54,8 +54,8 @@ Quem já tem a app instalada recebe a versão nova sozinho: ao abrir a app (ou d
 A app não tem contas, publicidade nem contadores de visitas, e não envia dados para lado nenhum. Os jogos a meio, as definições, o ranking e as estatísticas de jogo ficam guardados apenas no armazenamento local do teu browser. Partilhar um resultado ou um duelo só envia o que tu escolheres, pela folha de partilha do aparelho: no caso do duelo, o nome que escreveste, a pontuação, o tempo e o tabuleiro (no link e no código). O tipo de letra vem do próprio site, sem pedidos a serviços de terceiros.
 
 ## Créditos e licenças das listas de palavras
-- `js/data/validas.js` (palavras aceites nas Palavras) deriva do dicionário pt_PT do [Projecto Natura](https://natura.di.uminho.pt/), da Universidade do Minho (© 2006–2012 José João de Almeida, Rui Vilela e Alberto Simões), e é distribuído sob a Mozilla Public License 1.1 (`licencas/MPL-1.1.txt`).
-- `js/data/solucoes.js` (soluções) é uma seleção de palavras desse dicionário, escolhidas com as frequências de legendas em português europeu do OpenSubtitles 2018 compiladas por [Hermit Dave](https://github.com/hermitdave/FrequencyWords). É distribuído sob a licença CC BY-SA 4.0 (`licencas/CC-BY-SA-4.0.txt`). Alterações: revisão manual e ordem baralhada.
+- `js/data/validas.js`, `validas-4.js`, `validas-6.js` e `validas-7.js` (palavras aceites nas Palavras) derivam do dicionário pt_PT do [Projecto Natura](https://natura.di.uminho.pt/), da Universidade do Minho (© 2006–2012 José João de Almeida, Rui Vilela e Alberto Simões), e são distribuídos sob a Mozilla Public License 1.1 (`licencas/MPL-1.1.txt`).
+- `js/data/solucoes.js`, `solucoes-4.js`, `solucoes-6.js` e `solucoes-7.js` (soluções) são uma seleção de palavras desse dicionário, escolhidas com as frequências de legendas em português europeu do OpenSubtitles 2018 compiladas por [Hermit Dave](https://github.com/hermitdave/FrequencyWords). São distribuídos sob a licença CC BY-SA 4.0 (`licencas/CC-BY-SA-4.0.txt`). Alterações: revisão manual e ordem baralhada.
 - O tipo de letra Roboto (© 2011 The Roboto Project Authors) é distribuído sob a SIL Open Font License 1.1 (`licencas/OFL-1.1-Roboto.txt`) e vem da coleção Fontsource, só com os caracteres latinos.
 - O resto do código e do grafismo é original.
 

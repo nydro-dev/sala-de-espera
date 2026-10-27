@@ -337,7 +337,7 @@
     const lw = d.grid ? 500 : W - 2 * M;
     (d.lines || []).slice(0, 4).forEach(l => { fit(l, 500, 40, lw); x.fillText(l, M, y); y += 56; });
     if (d.grid) {
-      const n = d.grid[0] ? d.grid[0].length : 5, cs = 62, g2 = 10, gx = W - M - n * cs - (n - 1) * g2;
+      const n = d.grid[0] ? d.grid[0].length : 5, g2 = 10, cs = Math.min(62, Math.floor((350 - (n - 1) * g2) / n)) /* 7 letras cabem na mesma largura */, gx = W - M - n * cs - (n - 1) * g2;
       let gy = 430;
       const col = ["#4A4552", "#FFC301", "#09B5FF"];
       d.grid.forEach(row => { row.forEach((v, k) => { x.fillStyle = col[v] || col[0]; rr(gx + k * (cs + g2), gy, cs, cs, 10); x.fill(); }); gy += cs + g2; });
@@ -407,21 +407,30 @@
   const codeMask = (game, n) => { const r = rng("sala-de-espera:codigo:" + game); return [...Array(n)].map(() => r() * 32 | 0); };
   const code = {
     CROCK, seedNum, seedStr,
-    /* Quantos caracteres de dados (sem verificação) leva o código deste jogo. */
-    size: g => Math.ceil(g.code.bits.reduce((a, b) => a + b, 0) / 5),
+    /* Quantos caracteres de dados (sem verificação) leva um formato de código. */
+    size: C => Math.ceil(C.bits.reduce((a, b) => a + b, 0) / 5),
+    /* Um jogo pode ter mais de um formato: o principal (code) e outros com prefixo próprio (codes),
+       como as Palavras com 4, 6 e 7 letras. Os outros baralham com o prefixo junto ao jogo. */
+    specs: g => g && g.code ? [g.code].concat(g.codes || []) : [],
+    specKey: (g, C) => C === g.code ? g.id : g.id + ":" + C.pre,
     /* x = { d, b, s, t, p, w }; devolve null se não couber (semente antiga, pontuação enorme…). */
     encode(game, x, name) {
-      const g = gameById(game), C = g && g.code; if (!C || !String(name || "").trim()) return null;
-      let v; try { v = C.pack(x); } catch (e) { v = null; }
-      if (!v || v.length !== C.bits.length || v.some((n, i) => !Number.isInteger(n) || n < 0 || n >= 2 ** C.bits[i])) return null;
+      const g = gameById(game); if (!g || !String(name || "").trim()) return null;
+      let C = null, v = null;
+      for (const S of code.specs(g)) {
+        let w; try { w = S.pack(x); } catch (e) { w = null; }
+        if (w && w.length === S.bits.length && w.every((n, i) => Number.isInteger(n) && n >= 0 && n < 2 ** S.bits[i])) { C = S; v = w; break; }
+      }
+      if (!C) return null;
+      const ck = code.specKey(g, C);
       let big = 0n; C.bits.forEach((b, i) => { big = (big << BigInt(b)) | BigInt(v[i]); });
-      const n = code.size(g), total = C.bits.reduce((a, b) => a + b, 0);
+      const n = code.size(C), total = C.bits.reduce((a, b) => a + b, 0);
       big <<= BigInt(n * 5 - total);
-      const vals = [], mask = codeMask(game, n);
+      const vals = [], mask = codeMask(ck, n);
       for (let i = n - 1; i >= 0; i--) { vals[i] = Number(big & 31n); big >>= 5n; }
       const data = vals.map((c, i) => c ^ mask[i]);
       const nm = String(name).trim().slice(0, 16);
-      const all = data.concat(luhn32(data), codeMix(game, data, nm, C.ctx ? C.ctx(x) : ""));
+      const all = data.concat(luhn32(data), codeMix(ck, data, nm, C.ctx ? C.ctx(x) : ""));
       const s = all.map(c => CROCK[c]).join("");
       return C.pre + "-" + s.match(/.{1,4}/g).join("-") + "-" + nm;
     },
@@ -443,9 +452,11 @@
       let i = 0, chars = "";
       const take = n => { while (i < t.length && chars.length < n) { const c = t[i].toUpperCase(); i++; if (c === "-" || c === " " || c === "." || c === "‑") continue; chars += c; } };
       take(3);
-      const pre = chars.toUpperCase(), g = games.find(x => x.code && x.code.pre === pre);
+      const pre = chars.toUpperCase();
+      let g = null, C = null;
+      for (const x of games) { const S = code.specs(x).find(y => y.pre === pre); if (S) { g = x; C = S; break; } }
       if (!g) return { err: chars.length < 3 ? "Escreve o código todo, começando pelas três letras do jogo (por exemplo, SUD)." : "As três primeiras letras (" + pre + ") não correspondem a nenhum jogo." };
-      const n = code.size(g);
+      const n = code.size(C), ck = code.specKey(g, C);
       chars = ""; take(n + 2);
       if (chars.length < n + 2) return { err: "Faltam caracteres ao código." };
       const vals = [];
@@ -454,14 +465,14 @@
       if (!name) return { err: "Falta o nome de quem desafia, no fim do código." };
       const data = vals.slice(0, n);
       if (luhn32(data) !== vals[n]) return { err: "O código tem um erro. Confirma letra a letra." };
-      const mask = codeMask(g.id, n);
+      const mask = codeMask(ck, n);
       let big = 0n; data.forEach((c, k) => { big = (big << 5n) | BigInt(c ^ mask[k]); });
-      const C = g.code, total = C.bits.reduce((a, b) => a + b, 0);
+      const total = C.bits.reduce((a, b) => a + b, 0);
       big >>= BigInt(n * 5 - total);
       const v = [];
       for (let k = C.bits.length - 1; k >= 0; k--) { v[k] = Number(big & ((1n << BigInt(C.bits[k])) - 1n)); big >>= BigInt(C.bits[k]); }
       let x; try { x = C.unpack(v); } catch (e) { x = null; }
-      if (!x || codeMix(g.id, data, name, C.ctx ? C.ctx(x) : "") !== vals[n + 1]) return { err: "O código tem um erro (confirma também o nome no fim)." };
+      if (!x || codeMix(ck, data, name, C.ctx ? C.ctx(x) : "") !== vals[n + 1]) return { err: "O código tem um erro (confirma também o nome no fim)." };
       const D = { g: g.id, d: x.d, b: x.b, n: name, s: x.s, t: x.t, p: x.p || 0, w: x.w ? 1 : 0, bid: duel.boardId(g.id, x.d, x.b) };
       if (g.duelOk && !g.duelOk(D)) return { err: "Este código não dá um tabuleiro válido." };
       return { D };
