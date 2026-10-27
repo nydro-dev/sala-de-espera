@@ -271,13 +271,9 @@
     row.append(bP, bN);
     const tip = el("p", { class: "hint" }, '<span class="for-touch">Desliza o dedo no tabuleiro para mudar de direção.</span><span class="for-mouse">Setas ou <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> para virar, <kbd>Espaço</kbd> para pausa. Também dá para arrastar com o rato.</span>');
     if (duelD) c.controls.append(Sala.duel.tag(duelD), row, tip); else c.controls.append(segS, segM, row, tip);
-    cv.addEventListener("pointerdown", e => { e.preventDefault(); swipe = { x: e.clientX, y: e.clientY, moved: false }; try { cv.setPointerCapture(e.pointerId); } catch (x) {} });
+    cv.addEventListener("pointerdown", e => { e.preventDefault(); swipe = swNew(e); try { cv.setPointerCapture(e.pointerId); } catch (x) {} });
     cv.addEventListener("pointermove", e => {
-      if (!swipe) return;
-      const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
-      if (Math.max(Math.abs(dx), Math.abs(dy)) < 22) return;
-      turn(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up"));
-      swipe = { x: e.clientX, y: e.clientY, moved: true }; /* dá para fazer várias curvas sem levantar o dedo */
+      if (swipe) swMove(swipe, e, 22); /* dá para fazer várias curvas sem levantar o dedo */
     });
     cv.addEventListener("pointerup", () => { if (swipe && !swipe.moved && S.state !== "run" && S.state !== "over") start(); swipe = null; });
     cv.addEventListener("pointercancel", () => { swipe = null; });
@@ -302,14 +298,21 @@
   let docSwipe = null;
   function docDown(e) {
     if (!S || S.state !== "run" || e.target === cv || (e.target.closest && e.target.closest("button,input,dialog,a"))) return;
-    docSwipe = { x: e.clientX, y: e.clientY };
+    docSwipe = swNew(e);
   }
-  function docMove(e) {
-    if (!docSwipe) return;
-    const dx = e.clientX - docSwipe.x, dy = e.clientY - docSwipe.y;
-    if (Math.max(Math.abs(dx), Math.abs(dy)) < 26) return;
-    turn(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up"));
-    docSwipe = { x: e.clientX, y: e.clientY };
+  function docMove(e) { if (docSwipe) swMove(docSwipe, e, 26); }
+  /* Só conta um gesto decidido: a distância feita nos últimos 160 ms. Um dedo pousado que escorrega devagar,
+     ou que rola ao levantar, já não vira a cobra a meio; um gesto em diagonal espera até ficar claro. */
+  const SWIPE_WIN = 160;
+  function swNew(e) { return { pts: [{ x: e.clientX, y: e.clientY, t: e.timeStamp }], moved: false }; }
+  function swMove(g, e, min) {
+    const p = { x: e.clientX, y: e.clientY, t: e.timeStamp };
+    g.pts.push(p);
+    while (g.pts.length > 1 && p.t - g.pts[0].t > SWIPE_WIN) g.pts.shift();
+    const o = g.pts[0], dx = p.x - o.x, dy = p.y - o.y, ax = Math.abs(dx), ay = Math.abs(dy);
+    if (Math.max(ax, ay) < min || Math.max(ax, ay) < 1.3 * Math.min(ax, ay)) return;
+    turn(ax > ay ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up"));
+    g.pts = [p]; g.moved = true;
   }
   function docUp() { docSwipe = null; }
   function noScroll(e) { if (S && S.state === "run" && !modal.isOpen) e.preventDefault(); }

@@ -105,7 +105,26 @@
     win() { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, i * .1, .22, "triangle", .08)); },
     boom() { noise(.6, .55); tone(110, 0, .45, "sine", .2, 40); }
   };
-  function vibrate(p) { if (!settings.vibrate || !navigator.vibrate) return; try { navigator.vibrate(p); } catch (e) {} }
+  /* O Safari do iPhone não tem navigator.vibrate. Em troca, o interruptor nativo (input type="checkbox" switch)
+     dá um toque háptico ao mudar: um rótulo escondido, clicado por código, faz um toque curto. Truque sem garantias. */
+  const IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  function iosTick() {
+    try {
+      const lb = document.createElement("label"), inp = document.createElement("input");
+      lb.setAttribute("aria-hidden", "true"); lb.style.display = "none";
+      inp.type = "checkbox"; inp.setAttribute("switch", ""); inp.tabIndex = -1;
+      lb.appendChild(inp); document.head.appendChild(lb); lb.click(); lb.remove();
+    } catch (e) {}
+  }
+  function vibrate(p) {
+    if (!settings.vibrate) return;
+    if (navigator.vibrate) { try { navigator.vibrate(p); } catch (e) {} return; }
+    if (!IOS) return;
+    /* Um padrão vira um toque por cada vibração (máximo três), espaçados como no padrão. */
+    if (!Array.isArray(p)) return iosTick();
+    let at = 0;
+    for (let k = 0; k < p.length && k < 6; k += 2) { k ? setTimeout(iosTick, at) : iosTick(); at += (p[k] || 0) + (p[k + 1] || 0); }
+  }
 
   /* ---------- Avisos ---------- */
   let toastT = 0;
@@ -855,7 +874,7 @@
       f.appendChild(b); box.appendChild(f);
     };
     sw("sound", "Sons");
-    sw("vibrate", "Vibração", "Só funciona em Android.");
+    sw("vibrate", "Vibração", "No iPhone é só um toque leve e pode não funcionar em todos os modelos.");
     const fName = el("div", { class: "field col" }, '<label for="set-name">Nome no ranking</label>');
     const inp = el("input", { id: "set-name", class: "input", maxlength: "16", autocomplete: "nickname", placeholder: "Por exemplo: Rui", value: settings.name });
     inp.addEventListener("change", () => setSetting("name", inp.value.trim().slice(0, 16)));

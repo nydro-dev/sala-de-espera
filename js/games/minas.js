@@ -12,7 +12,7 @@
   const FLAG = '<svg viewBox="0 0 20 20"><path d="M5.5 2.5v15" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"/><path d="M6.5 3h9.5l-2.6 3.8L16 10.6H6.5z" fill="var(--yellow)" stroke="var(--ink)" stroke-width="1.2" stroke-linejoin="round"/></svg>';
   const MINE = '<svg viewBox="0 0 20 20"><path d="M10 1.5v17M1.5 10h17M4 4l12 12M16 4L4 16" stroke="var(--ink)" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="10" r="5.6" fill="var(--ink)"/><circle cx="8.2" cy="8.2" r="1.5" fill="var(--surface)"/></svg>';
 
-  let M = null, els = null, cur = -1, kbd = false, lp = null, lpFired = false, lastTouch = 0, isDaily = false, duelD = null;
+  let M = null, els = null, cur = -1, kbd = false, lp = null, lpFired = false, lpCancel = false, hold = null, holdUi = null, lastTouch = 0, isDaily = false, duelD = null;
   const KEY = () => duelD ? "minas:duelo" : isDaily ? "minas:dia" : "minas";
 
   /* ---------- Estado ---------- */
@@ -164,12 +164,12 @@
     const bZoom = el("button", { class: "btn", type: "button", id: "m-zoom", hidden: true });
     bZoom.onclick = () => { store.set("minasZoom", !zoomOn()); sound.tap(); sizeGrid(); };
     top.append(bZoom, bNew);
-    const kb = el("p", { class: "hint" }, '<span class="for-touch">Toque longo faz a ação contrária ao modo escolhido.</span><span class="for-mouse">Clique direito para a bandeira. Teclado: setas, <kbd>Espaço</kbd> abrir, <kbd>F</kbd> bandeira.</span>');
+    const kb = el("p", { class: "hint" }, '<span class="for-touch">Segura até o círculo encher para a ação contrária ao modo escolhido.</span><span class="for-mouse">Clique direito para a bandeira. Teclado: setas, <kbd>Espaço</kbd> abrir, <kbd>F</kbd> bandeira.</span>');
     c.controls.append(diffSeg, mode, top, kb);
 
     grid.addEventListener("click", e => {
       const t = e.target.closest(".mc"); if (!t) return;
-      if (lpFired) { lpFired = false; return; }
+      if (lpFired || lpCancel) { lpFired = lpCancel = false; return; }
       kbd = false; act(+t.dataset.i, M.flagMode ? "flag" : "open");
     });
     grid.addEventListener("contextmenu", e => {
@@ -177,11 +177,31 @@
       if (Date.now() - lastTouch < 1000) return; /* no Android, o toque longo também gera este evento */
       const t = e.target.closest(".mc"); if (t) act(+t.dataset.i, "flag");
     });
+    /* Toque longo com sinais à vista (o dedo tapa a casa e o iPhone não vibra): a casa levanta, um anel enche-se
+       à volta e um balão por cima do dedo mostra o que vai acontecer. Um tremor pequeno não cancela; se o dedo
+       arrastar a sério, o toque é ignorado em vez de abrir a casa por engano. */
     grid.addEventListener("touchstart", e => {
-      const t = e.target.closest(".mc"); if (!t) return; lpFired = false; lastTouch = Date.now();
-      lp = setTimeout(() => { lpFired = true; act(+t.dataset.i, M.flagMode ? "open" : "flag"); }, 380);
+      holdEnd();
+      const t = e.target.closest(".mc"); if (!t || e.touches.length > 1) return;
+      lpFired = false; lpCancel = false; lastTouch = Date.now();
+      const i = +t.dataset.i;
+      if (M.open[i] || M.state === "over" || M.state === "won" || (M.flagMode && M.flag[i])) return; /* aqui o toque longo não faz nada */
+      const p = e.touches[0];
+      hold = { i, x: p.clientX, y: p.clientY, cell: t };
+      holdShow(t, i);
+      lp = setTimeout(() => {
+        lpFired = true; const h = hold; holdDone();
+        act(i, M.flagMode ? "open" : "flag");
+        if (h && motion()) { const c = document.getElementById("m-grid").children[i]; if (c) { c.classList.remove("mh-pop"); void c.offsetWidth; c.classList.add("mh-pop"); } }
+      }, HOLD_MS);
     }, { passive: true });
-    ["touchend", "touchmove", "touchcancel"].forEach(t => grid.addEventListener(t, () => clearTimeout(lp), { passive: true }));
+    grid.addEventListener("touchmove", e => {
+      if (!hold || lpFired) return;
+      const p = e.touches[0];
+      if (e.touches.length > 1 || Math.hypot(p.clientX - hold.x, p.clientY - hold.y) > HOLD_SLOP) { lpCancel = true; holdEnd(); }
+    }, { passive: true });
+    grid.addEventListener("touchend", () => { holdEnd(); }, { passive: true });
+    grid.addEventListener("touchcancel", () => { lpCancel = true; holdEnd(); }, { passive: true });
 
     buildGrid();
     if (duelD) msg(M.state === "won" || M.state === "over" ? "Duelo terminado." : "Mesmo campo de " + duelD.n + ". Começa a partir da zona já aberta.");
@@ -191,7 +211,7 @@
     toStart();
     addEventListener("resize", sizeGrid);
   }
-  function unmount() { save(); removeEventListener("resize", sizeGrid); if (els) els.board.parentNode.classList.remove("wide-board"); els = null; clearTimeout(lp); if (isDaily || duelD) { M = null; isDaily = false; duelD = null; } }
+  function unmount() { save(); removeEventListener("resize", sizeGrid); if (els) els.board.parentNode.classList.remove("wide-board"); els = null; holdEnd(); if (isDaily || duelD) { M = null; isDaily = false; duelD = null; } }
   function syncDiff() { const s = document.getElementById("m-diff"); if (s) s.querySelectorAll("button").forEach((b, k) => b.setAttribute("aria-pressed", String(DIFFS[k].id === M.diff))); }
   function msg(t, bad) { const m = document.getElementById("m-msg"); if (m) { m.textContent = t; m.className = "msg" + (bad ? " bad" : ""); } }
 
@@ -222,6 +242,40 @@
       b.hidden = !small;
       b.innerHTML = zoom ? '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4M8 11h6"/></svg>Ver tudo' : '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4M8 11h6M11 8v6"/></svg>Ampliar';
     }
+  }
+
+  /* ---------- Toque longo ---------- */
+  const HOLD_MS = 350, HOLD_SLOP = 10; /* tempo do toque longo e tremor tolerado, em píxeis */
+  const UNFLAG = '<svg viewBox="0 0 20 20"><path d="M5.5 2.5v15" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"/><path d="M6.5 3h9.5l-2.6 3.8L16 10.6H6.5z" fill="var(--yellow)" stroke="var(--ink)" stroke-width="1.2" stroke-linejoin="round" opacity=".45"/><path d="M2.5 17.5l15-15" stroke="var(--bad)" stroke-width="2.2" stroke-linecap="round"/></svg>';
+  const OPEN = '<svg viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3l13 7.5-5.8 1.6L10.5 18z"/><path d="M13.4 12.3L18 17"/></svg>';
+  function holdShow(t, i) {
+    const r = t.getBoundingClientRect(), B = 64, gap = 44;
+    const ico = M.flagMode ? OPEN : M.flag[i] ? UNFLAG : FLAG;
+    const ring = el("div", { class: "mh-ring", "aria-hidden": "true" }, '<svg viewBox="0 0 100 100" preserveAspectRatio="none"><rect x="2" y="2" width="96" height="96" rx="16" pathLength="100" vector-effect="non-scaling-stroke"/></svg>');
+    Object.assign(ring.style, { left: r.left - 5 + "px", top: r.top - 5 + "px", width: r.width + 10 + "px", height: r.height + 10 + "px" });
+    /* O balão vai por cima do dedo; sem espaço em cima, vai para o lado. */
+    let bx = r.left + r.width / 2 - B / 2, by = r.top - gap - B;
+    if (by < 8) { by = r.top + r.height / 2 - B / 2; bx = r.left - gap / 2 - B; if (bx < 8) bx = r.right + gap / 2; }
+    bx = clamp(bx, 8, innerWidth - B - 8);
+    const bub = el("div", { class: "mh-bub", "aria-hidden": "true" }, '<svg class="mh-prog" viewBox="0 0 64 64"><circle class="mh-track" cx="32" cy="32" r="29"/><circle class="mh-fill" cx="32" cy="32" r="29" pathLength="100"/></svg><span class="mh-ico">' + ico + "</span>");
+    Object.assign(bub.style, { left: bx + "px", top: by + "px" });
+    [ring, bub].forEach(n => n.style.setProperty("--hold", HOLD_MS + "ms"));
+    document.body.append(ring, bub);
+    t.classList.add("mh-lift");
+    holdUi = { ring, bub, cell: t };
+  }
+  function holdDone() {
+    clearTimeout(lp); hold = null;
+    if (!holdUi) return;
+    const u = holdUi; holdUi = null;
+    u.cell.classList.remove("mh-lift");
+    u.ring.remove(); u.bub.classList.add("done");
+    setTimeout(() => u.bub.remove(), 260);
+  }
+  function holdEnd() {
+    clearTimeout(lp); hold = null;
+    if (!holdUi) return;
+    holdUi.cell.classList.remove("mh-lift"); holdUi.ring.remove(); holdUi.bub.remove(); holdUi = null;
   }
 
   function render(newly) {
@@ -371,7 +425,7 @@
       "<h4>Tabuleiros</h4><ul><li>Iniciante: 8×8 com 8 minas.</li><li>Fácil: 9×9 com 10 minas.</li><li>Médio: 16×16 com 40 minas.</li><li>Difícil: 30×16 com 99 minas.</li><li>Extremo: 30×20 com 130 minas.</li><li>No telemóvel ao alto, os tabuleiros largos rodam (16×30 e 20×30). Com a lupa, as casas ficam do tamanho do dedo e o tabuleiro desliza; \"Ver tudo\" mostra-o inteiro.</li></ul>" +
       "<h4>Controlos</h4><ul>" +
       "<li><b>Rato:</b> clique abre, clique direito põe ou tira a bandeira.</li>" +
-      "<li><b>Toque:</b> escolhe o modo (Abrir ou Bandeira) nos botões; o toque longo faz a ação contrária.</li>" +
+      "<li><b>Toque:</b> escolhe o modo (Abrir ou Bandeira) nos botões; segurar faz a ação contrária: a casa levanta, aparece um balão por cima do dedo e, quando o círculo enche, a ação está feita.</li>" +
       "<li><b>Atalho:</b> num número já rodeado das bandeiras certas, clicar abre as casas que faltam à volta.</li>" +
       "<li><b>Teclado:</b> setas para mover, <kbd>Espaço</kbd> ou <kbd>Enter</kbd> para abrir, <kbd>F</kbd> para a bandeira.</li></ul>" +
       "<h4>Pontuação</h4><ul>" +
