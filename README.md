@@ -3,8 +3,8 @@
 Jogos curtos numa app web instalável (PWA), feita para jogar nos intervalos. Funciona no telemóvel e no computador, com tema claro, escuro ou automático.
 
 ## Jogos
-- **Sudoku** com três dificuldades, sempre com solução única. Inclui notas a lápis, desfazer e pistas.
-- **Minas** com tabuleiros de 9×9, 16×16 e 30×16 (que roda para 16×30 no telemóvel ao alto). A primeira casa nunca rebenta.
+- **Sudoku** com cinco dificuldades, do Iniciante ao Diabólico, sempre com solução única. Cada puzzle é avaliado por um resolvedor lógico, para que a dificuldade corresponda às técnicas que pede. Inclui notas a lápis, desfazer e pistas.
+- **Minas** com tabuleiros de 8×8 a 30×20 (cinco dificuldades). Os tabuleiros largos rodam no telemóvel ao alto e têm lupa para casas do tamanho do dedo. A primeira casa nunca rebenta.
 - **2048** em tabuleiros de 3×3, 4×4 e 5×5, com três jogadas para desfazer por jogo.
 - **Palavras**: descobrir uma palavra portuguesa de cinco letras em seis tentativas, com palavra do dia (e sequência de dias seguidos) ou jogo livre. Os acentos e o ç aparecem sozinhos.
 - **Blackjack** com seis baralhos: a banca fica com qualquer 17, o blackjack paga 3 para 2, e dá para dobrar e dividir.
@@ -33,7 +33,7 @@ No Android, ou no Chrome e no Edge do computador, a opção chama-se "Instalar a
 Sem frameworks nem compilação: o GitHub Pages serve os ficheiros tal como estão.
 
 ## Atualizar
-Depois de alterar ficheiros, subir a versão em `sw.js` (`sala-v7` → `sala-v8`) para os aparelhos já instalados receberem a cópia nova. Se acrescentares ficheiros, junta-os também à lista `CORE`.
+Depois de alterar ficheiros, subir a versão em `sw.js` (`sala-v8` → `sala-v9`) para os aparelhos já instalados receberem a cópia nova. Se acrescentares ficheiros, junta-os também à lista `CORE`.
 
 ## Privacidade
 A app não tem contas, publicidade nem estatísticas, e não envia dados para lado nenhum. Os jogos a meio, as definições e o ranking ficam guardados apenas no armazenamento local do teu browser. O tipo de letra é carregado do Google Fonts na primeira utilização.

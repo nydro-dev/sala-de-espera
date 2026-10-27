@@ -3,10 +3,11 @@
   "use strict";
   const { el, fmtTime, fmtNum, shuffle, clamp, store, sound, vibrate, motion, fx, toast, modal, ranking, ui, finish } = Sala;
 
-  const DIFFS = [{ id: "easy", label: "Fácil" }, { id: "medium", label: "Médio" }, { id: "hard", label: "Difícil" }];
-  const CFG = { easy: { w: 9, h: 9, m: 10 }, medium: { w: 16, h: 16, m: 40 }, hard: { w: 30, h: 16, m: 99 } };
-  const BASE = { easy: 500, medium: 2000, hard: 5000 };
-  const PAR = { easy: 60, medium: 240, hard: 600 }; /* segundos de referência para o bónus */
+  const DIFFS = [{ id: "beginner", label: "Iniciante" }, { id: "easy", label: "Fácil" }, { id: "medium", label: "Médio" }, { id: "hard", label: "Difícil" }, { id: "extreme", label: "Extremo" }];
+  const CFG = { beginner: { w: 8, h: 8, m: 8 }, easy: { w: 9, h: 9, m: 10 }, medium: { w: 16, h: 16, m: 40 }, hard: { w: 30, h: 16, m: 99 }, extreme: { w: 30, h: 20, m: 130 } };
+  const BASE = { beginner: 250, easy: 500, medium: 2000, hard: 5000, extreme: 9000 };
+  const PAR = { beginner: 30, easy: 60, medium: 240, hard: 600, extreme: 1080 }; /* segundos de referência para o bónus */
+  const TOUCH_CS = 34; /* tamanho confortável para o dedo, com a lupa ligada */
   const FLAG = '<svg viewBox="0 0 20 20"><path d="M5.5 2.5v15" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"/><path d="M6.5 3h9.5l-2.6 3.8L16 10.6H6.5z" fill="var(--yellow)" stroke="var(--ink)" stroke-width="1.2" stroke-linejoin="round"/></svg>';
   const MINE = '<svg viewBox="0 0 20 20"><path d="M10 1.5v17M1.5 10h17M4 4l12 12M16 4L4 16" stroke="var(--ink)" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="10" r="5.6" fill="var(--ink)"/><circle cx="8.2" cy="8.2" r="1.5" fill="var(--surface)"/></svg>';
 
@@ -64,7 +65,7 @@
     scroll.appendChild(grid);
     c.board.append(scroll, el("div", { class: "msg", id: "m-msg", role: "status" }));
 
-    const diffSeg = ui.seg(DIFFS, M.diff, id => askNew(id), "Dificuldade"); diffSeg.id = "m-diff";
+    const diffSeg = ui.seg(DIFFS, M.diff, id => askNew(id), "Dificuldade"); diffSeg.id = "m-diff"; diffSeg.classList.add("wrap");
     const mode = el("div", { class: "minas-mode", role: "group", "aria-label": "Modo do toque" });
     const bOpen = el("button", { class: "btn", type: "button", id: "m-mopen" }, ui.ICON.pick + "Abrir");
     const bFlag = el("button", { class: "btn", type: "button", id: "m-mflag" }, ui.ICON.flag + "Bandeira");
@@ -74,7 +75,9 @@
     const top = el("div", { class: "row" });
     const bNew = el("button", { class: "btn", type: "button" }, ui.ICON.plus + "Novo jogo");
     bNew.onclick = () => askNew(M.diff);
-    top.append(bNew);
+    const bZoom = el("button", { class: "btn", type: "button", id: "m-zoom", hidden: true });
+    bZoom.onclick = () => { store.set("minasZoom", !zoomOn()); sound.tap(); sizeGrid(); };
+    top.append(bZoom, bNew);
     const kb = el("p", { class: "hint" }, '<span class="for-touch">Toque longo faz a ação contrária ao modo escolhido.</span><span class="for-mouse">Clique direito para a bandeira. Teclado: setas, <kbd>Espaço</kbd> abrir, <kbd>F</kbd> bandeira.</span>');
     c.controls.append(diffSeg, mode, top, kb);
 
@@ -99,7 +102,7 @@
     render();
     addEventListener("resize", sizeGrid);
   }
-  function unmount() { save(); removeEventListener("resize", sizeGrid); els = null; clearTimeout(lp); }
+  function unmount() { save(); removeEventListener("resize", sizeGrid); if (els) els.board.parentNode.classList.remove("wide-board"); els = null; clearTimeout(lp); }
   function syncDiff() { const s = document.getElementById("m-diff"); if (s) s.querySelectorAll("button").forEach((b, k) => b.setAttribute("aria-pressed", String(DIFFS[k].id === M.diff))); }
   function msg(t, bad) { const m = document.getElementById("m-msg"); if (m) { m.textContent = t; m.className = "msg" + (bad ? " bad" : ""); } }
 
@@ -111,11 +114,25 @@
     g.appendChild(frag);
     sizeGrid();
   }
+  /* Lupa: no telemóvel, os tabuleiros grandes ficam com casas do tamanho do dedo e o tabuleiro desliza. */
+  const zoomOn = () => store.get("minasZoom", true);
   function sizeGrid() {
     if (!els) return;
+    /* No PC, os tabuleiros largos ocupam a largura toda e as estatísticas passam para baixo. */
+    els.board.parentNode.classList.toggle("wide-board", M.w > 16 && innerWidth >= 900);
     const avail = els.board.clientWidth || innerWidth - 32;
-    const cs = clamp(Math.floor((avail - 10 - 2 * (M.w - 1)) / M.w), 18, 40);
+    const fit = Math.floor((avail - 10 - 2 * (M.w - 1)) / M.w);
+    const small = fit < 28, zoom = small && zoomOn();
+    const cs = zoom ? TOUCH_CS : clamp(fit, 16, 40);
     document.getElementById("m-grid").style.setProperty("--cs", cs + "px");
+    const sc = els.board.querySelector(".mscroll");
+    sc.classList.toggle("zoomed", zoom);
+    sc.style.maxHeight = zoom ? Math.max(300, innerHeight - 340) + "px" : ""; /* deixa à vista os botões Abrir e Bandeira */
+    const b = document.getElementById("m-zoom");
+    if (b) {
+      b.hidden = !small;
+      b.innerHTML = zoom ? '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4M8 11h6"/></svg>Ver tudo' : '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4M8 11h6M11 8v6"/></svg>Ampliar';
+    }
   }
 
   function render(newly) {
@@ -231,15 +248,15 @@
 
   function help() {
     return "<h4>Objetivo</h4><p>Abrir todas as casas que não têm minas. Cada número diz quantas minas há nas oito casas à volta. A primeira casa que abres nunca tem mina.</p>" +
-      "<h4>Tabuleiros</h4><ul><li>Fácil: 9×9 com 10 minas.</li><li>Médio: 16×16 com 40 minas.</li><li>Difícil: 30×16 com 99 minas (no telemóvel ao alto, fica 16×30).</li></ul>" +
+      "<h4>Tabuleiros</h4><ul><li>Iniciante: 8×8 com 8 minas.</li><li>Fácil: 9×9 com 10 minas.</li><li>Médio: 16×16 com 40 minas.</li><li>Difícil: 30×16 com 99 minas.</li><li>Extremo: 30×20 com 130 minas.</li><li>No telemóvel ao alto, os tabuleiros largos rodam (16×30 e 20×30). Com a lupa, as casas ficam do tamanho do dedo e o tabuleiro desliza; \"Ver tudo\" mostra-o inteiro.</li></ul>" +
       "<h4>Controlos</h4><ul>" +
       "<li><b>Rato:</b> clique abre, clique direito põe ou tira a bandeira.</li>" +
       "<li><b>Toque:</b> escolhe o modo (Abrir ou Bandeira) nos botões; o toque longo faz a ação contrária.</li>" +
       "<li><b>Atalho:</b> num número já rodeado das bandeiras certas, clicar abre as casas que faltam à volta.</li>" +
       "<li><b>Teclado:</b> setas para mover, <kbd>Espaço</kbd> ou <kbd>Enter</kbd> para abrir, <kbd>F</kbd> para a bandeira.</li></ul>" +
       "<h4>Pontuação</h4><ul>" +
-      "<li>Base: 500 no Fácil, 2000 no Médio e 5000 no Difícil.</li>" +
-      "<li>Bónus de rapidez: o tempo de referência é 1, 4 e 10 minutos. Acabar em metade desse tempo vale ×1,5; no dobro, ×0,5 (nunca menos de ×0,25).</li>" +
+      "<li>Base: 250 no Iniciante, 500 no Fácil, 2000 no Médio, 5000 no Difícil e 9000 no Extremo.</li>" +
+      "<li>Bónus de rapidez: o tempo de referência é 30 segundos, 1, 4, 10 e 18 minutos. Acabar em metade desse tempo vale ×1,5; no dobro, ×0,5 (nunca menos de ×0,25).</li>" +
       "<li>Só as vitórias contam para o ranking.</li></ul>";
   }
 

@@ -288,7 +288,7 @@
     const draw = () => {
       filters.innerHTML = "";
       if (!gameId) { const sg = ui.seg(ready.map(x => ({ id: x.id, label: x.name })), g.id, id => { g = gameById(id); if (!g.diffs.some(x => x.id === d)) d = g.diffs[0].id; mo = g.rankModes ? g.rankModes[0].id : null; draw(); }, "Jogo"); sg.classList.add("wrap"); filters.appendChild(sg); }
-      if (g.diffs.length > 1) filters.appendChild(ui.seg(g.diffs, d, id => { d = id; drawTable(); }, "Dificuldade"));
+      if (g.diffs.length > 1) { const sd = ui.seg(g.diffs, d, id => { d = id; drawTable(); }, "Dificuldade"); if (g.diffs.length > 3) sd.classList.add("wrap"); filters.appendChild(sd); }
       if (g.rankModes) filters.appendChild(ui.seg(g.rankModes, mo, id => { mo = id; drawTable(); }, "Modo"));
       drawTable();
     };

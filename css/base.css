@@ -277,6 +277,12 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 @keyframes open-in{from{transform:scale(.7);opacity:.2}}
 @keyframes boom{0%{transform:scale(1);box-shadow:0 0 0 0 var(--bad)}40%{transform:scale(1.35)}100%{transform:scale(1);box-shadow:0 0 0 18px transparent}}
 .minas-mode{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.mscroll.zoomed{width:100%;overscroll-behavior:contain;border-radius:12px;background:var(--line)}
+.mscroll.zoomed .mgrid{margin:0}
+@media (min-width:900px){
+  .game-body.wide-board{grid-template-areas:"board board" "stats controls";grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto auto;row-gap:16px}
+  .game-body.wide-board .controls .hint{text-align:left}
+}
 
 
 /* ===================== Casino (comum) ===================== */
@@ -437,4 +443,5 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 
 /* ===================== Cobra ===================== */
 .cb-wrap{display:grid;place-items:center;width:100%}
+html.cb-lock,html.cb-lock body{overscroll-behavior:none;touch-action:none;overflow:hidden}
 .cb-canvas{display:block;border-radius:12px;box-shadow:var(--shadow);touch-action:none;user-select:none;-webkit-user-select:none;cursor:pointer}

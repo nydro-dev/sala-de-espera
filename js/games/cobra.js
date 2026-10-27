@@ -12,6 +12,7 @@
   const DIRS = { up: [-1, 0], down: [1, 0], left: [0, -1], right: [0, 1] };
 
   let S = null, els = null, cv = null, cx = null, raf = 0, last = 0, acc = 0, queue = [], swipe = null, born = 0, deadAt = 0;
+  let prevSnake = null, frac = 1, frame = 0, bgCache = null, bgKey = "";
 
   /* ---------- Estado ---------- */
   function fresh(speed, mode) {
@@ -54,8 +55,10 @@
   const interval = () => speedOf(S.speed).ms * Math.max(.55, 1 - S.apples * .012);
 
   /* ---------- Jogo ---------- */
-  function start() { if (S.state === "ready" || S.state === "pause") { S.state = "run"; acc = 0; last = performance.now(); sound.tap(); syncPause(); } }
-  function pause() { if (S.state === "run") { S.state = "pause"; save(); syncPause(); draw(); } }
+  function start() { if (S.state === "ready" || S.state === "pause") { S.state = "run"; acc = 0; prevSnake = null; last = performance.now(); sound.tap(); syncPause(); lock(true); } }
+  function pause() { if (S.state === "run") { S.state = "pause"; save(); syncPause(); lock(false); draw(); } }
+  /* Com o jogo a correr, a página não desliza: um dedo fora do tabuleiro não faz scroll sem querer. */
+  function lock(on) { document.documentElement.classList.toggle("cb-lock", !!on); if (on) scrollTo(0, 0); }
   function togglePause() { if (S.state === "run") pause(); else if (S.state !== "over") start(); }
   function turn(name) {
     if (!S || S.state === "over") return;
@@ -69,6 +72,7 @@
     if (queue.length < 3) queue.push(d);
   }
   function step() {
+    prevSnake = S.snake.map(p => p.slice()); /* para desenhar o movimento suave entre casas */
     if (queue.length) S.dir = queue.shift();
     const h = S.snake[0];
     let r = h[0] + S.dir[0], c = h[1] + S.dir[1];
@@ -96,7 +100,7 @@
     if (!S.apple) return die(true); /* encheu o tabuleiro */
   }
   function die(full) {
-    S.state = "over"; deadAt = performance.now(); save(); syncPause(); draw(); stats();
+    S.state = "over"; deadAt = performance.now(); prevSnake = null; lock(false); save(); syncPause(); draw(); stats();
     if (full) { msg("Encheste o tabuleiro todo!"); }
     else {
       sound.boom(); vibrate([40, 40, 90]);
@@ -128,7 +132,8 @@
       acc += dt;
       let guard = 0;
       while (acc >= interval() && S.state === "run" && guard++ < 5) { acc -= interval(); step(); }
-    }
+      frac = S.state === "run" ? Math.min(1, acc / interval()) : 1;
+    } else frac = 1;
     draw(now);
   }
 
@@ -139,46 +144,62 @@
     col = { bg: v("--surface"), alt: v("--surface-2"), line: v("--line"), wall: v("--line-strong"), body: v("--blue"), head: v("--blue-ink"), ink: v("--ink"), apple: "#E8352E", gold: v("--yellow"), bad: v("--bad"), muted: v("--muted") };
   }
   function rr(x, y, w, h, r) { cx.beginPath(); cx.roundRect ? cx.roundRect(x, y, w, h, r) : cx.rect(x, y, w, h); cx.fill(); }
+  /* Fundo xadrez guardado numa imagem: só se redesenha quando muda o tamanho ou o tema. */
+  function background(size, cs) {
+    const dpr = devicePixelRatio || 1, key = size + "|" + dpr + "|" + col.bg + col.alt;
+    if (bgKey !== key) {
+      bgCache = document.createElement("canvas"); bgCache.width = bgCache.height = Math.round(size * dpr);
+      const b = bgCache.getContext("2d"); b.setTransform(dpr, 0, 0, dpr, 0, 0);
+      b.fillStyle = col.bg; b.fillRect(0, 0, size, size); b.fillStyle = col.alt;
+      for (let r = 0; r < N; r++) for (let c = (r % 2); c < N; c += 2) b.fillRect(c * cs, r * cs, cs, cs);
+      bgKey = key;
+    }
+    return bgCache;
+  }
+  /* Posição de cada segmento entre a casa anterior e a atual (t de 0 a 1). */
+  function segPos(i, t) {
+    const now = S.snake[i], was = prevSnake && prevSnake[i];
+    if (!was || t >= 1) return [now[0], now[1]];
+    if (Math.abs(was[0] - now[0]) + Math.abs(was[1] - now[1]) !== 1) return [now[0], now[1]]; /* atravessou a parede */
+    return [was[0] + (now[0] - was[0]) * t, was[1] + (now[1] - was[1]) * t];
+  }
   function draw(now) {
     if (!cx || !S) return;
     now = now || performance.now();
-    readColors();
-    const size = cv.width / (devicePixelRatio || 1), cs = size / N;
-    cx.setTransform(devicePixelRatio || 1, 0, 0, devicePixelRatio || 1, 0, 0);
-    cx.fillStyle = col.bg; cx.fillRect(0, 0, size, size);
-    cx.fillStyle = col.alt;
-    for (let r = 0; r < N; r++) for (let c = (r % 2); c < N; c += 2) cx.fillRect(c * cs, r * cs, cs, cs);
-    const anim = motion();
+    if (frame++ % 30 === 0 || !col.bg) readColors();
+    const dpr = devicePixelRatio || 1, size = cv.width / dpr, cs = size / N;
+    cx.setTransform(1, 0, 0, 1, 0, 0); cx.drawImage(background(size, cs), 0, 0);
+    cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const anim = motion(), t = anim ? frac : 1;
     /* Maçã (cresce ao aparecer) */
     if (S.apple) {
-      const k = anim ? Math.min(1, (now - born) / 220) : 1, s = .5 + .5 * (k < 1 ? 1 - Math.pow(1 - k, 3) : 1);
+      const k = anim ? Math.min(1, (now - born) / 220) : 1, s = .5 + .5 * (1 - Math.pow(1 - k, 3));
       const [r, c] = S.apple, x = (c + .5) * cs, y = (r + .5) * cs;
       cx.fillStyle = col.apple; cx.beginPath(); cx.arc(x, y + cs * .04, cs * .36 * s, 0, 6.29); cx.fill();
       cx.fillStyle = "#1D7A3E"; cx.beginPath(); cx.ellipse(x + cs * .12 * s, y - cs * .3 * s, cs * .13 * s, cs * .07 * s, -.6, 0, 6.29); cx.fill();
     }
     if (S.gold) {
       const [r, c] = S.gold.p, x = (c + .5) * cs, y = (r + .5) * cs;
-      const pulse = anim ? 1 + .08 * Math.sin(now / 120) : 1, frac = S.gold.life / GOLD_STEPS;
+      const pulse = anim ? 1 + .08 * Math.sin(now / 120) : 1, f = S.gold.life / GOLD_STEPS;
       cx.strokeStyle = col.gold; cx.lineWidth = Math.max(2, cs * .1);
-      cx.beginPath(); cx.arc(x, y, cs * .46, -Math.PI / 2, -Math.PI / 2 + frac * 6.283); cx.stroke();
+      cx.beginPath(); cx.arc(x, y, cs * .46, -Math.PI / 2, -Math.PI / 2 + f * 6.283); cx.stroke();
       cx.fillStyle = col.gold; cx.beginPath(); cx.arc(x, y, cs * .3 * pulse, 0, 6.29); cx.fill();
       cx.fillStyle = "rgba(255,255,255,.8)"; cx.beginPath(); cx.arc(x - cs * .09, y - cs * .09, cs * .07, 0, 6.29); cx.fill();
     }
-    /* Corpo: casas arredondadas, ligadas às vizinhas */
-    const pad = cs * .1, dead = S.state === "over" && S.apple !== null;
-    cx.fillStyle = col.body;
-    S.snake.forEach((p, i) => {
-      const [r, c] = p, x = c * cs, y = r * cs;
-      rr(x + pad, y + pad, cs - pad * 2, cs - pad * 2, cs * .28);
-      const n = S.snake[i + 1];
-      if (n && Math.abs(n[0] - r) + Math.abs(n[1] - c) === 1) {
-        const mx = Math.min(c, n[1]) * cs, my = Math.min(r, n[0]) * cs;
-        if (n[0] === r) cx.fillRect(mx + cs / 2, y + pad, cs, cs - pad * 2); else cx.fillRect(x + pad, my + cs / 2, cs - pad * 2, cs);
-      }
+    /* Corpo: uma linha grossa e redonda pelos centros dos segmentos, cortada onde atravessa a parede */
+    const pts = S.snake.map((_, i) => segPos(i, t));
+    cx.strokeStyle = col.body; cx.lineWidth = cs * .78; cx.lineCap = "round"; cx.lineJoin = "round";
+    cx.beginPath();
+    pts.forEach((p, i) => {
+      const x = (p[1] + .5) * cs, y = (p[0] + .5) * cs, q = pts[i - 1];
+      if (!q || Math.abs(q[0] - p[0]) + Math.abs(q[1] - p[1]) > 1.01) cx.moveTo(x, y); else cx.lineTo(x, y);
     });
+    if (pts.length === 1) cx.lineTo((pts[0][1] + .5) * cs + .1, (pts[0][0] + .5) * cs);
+    cx.stroke();
     /* Cabeça com olhos a olhar para onde vai */
-    const [hr, hc] = S.snake[0], hx = hc * cs, hy = hr * cs;
-    cx.fillStyle = dead ? col.bad : col.head; rr(hx + pad * .6, hy + pad * .6, cs - pad * 1.2, cs - pad * 1.2, cs * .3);
+    const dead = S.state === "over" && S.apple !== null;
+    const [hr, hc] = pts[0], hx = hc * cs, hy = hr * cs, pad = cs * .06;
+    cx.fillStyle = dead ? col.bad : col.head; rr(hx + pad, hy + pad, cs - pad * 2, cs - pad * 2, cs * .32);
     const [dr, dc] = S.dir, ex = (hc + .5 + dc * .14) * cs, ey = (hr + .5 + dr * .14) * cs, off = cs * .18;
     const eyes = dr ? [[ex - off, ey], [ex + off, ey]] : [[ex, ey - off], [ex, ey + off]];
     eyes.forEach(([x, y]) => {
@@ -229,12 +250,36 @@
     });
     cv.addEventListener("pointerup", () => { if (swipe && !swipe.moved && S.state !== "run" && S.state !== "over") start(); swipe = null; });
     cv.addEventListener("pointercancel", () => { swipe = null; });
+    document.addEventListener("pointerdown", docDown);
+    document.addEventListener("pointermove", docMove);
+    document.addEventListener("pointerup", docUp);
+    document.addEventListener("touchmove", noScroll, { passive: false });
     resize(); syncPause(); stats();
     if (S.state === "over") msg(S.score ? "Fim de jogo. Começa outro quando quiseres." : "Sem pontos desta vez. Tenta outra vez.", true);
     addEventListener("resize", resize);
     last = performance.now(); raf = requestAnimationFrame(loop);
   }
-  function unmount() { pause(); save(); cancelAnimationFrame(raf); raf = 0; removeEventListener("resize", resize); els = null; cv = cx = null; }
+  function unmount() {
+    pause(); save(); lock(false); cancelAnimationFrame(raf); raf = 0; removeEventListener("resize", resize);
+    document.removeEventListener("pointerdown", docDown); document.removeEventListener("pointermove", docMove);
+    document.removeEventListener("pointerup", docUp); document.removeEventListener("touchmove", noScroll);
+    els = null; cv = cx = null; docSwipe = null;
+  }
+  /* Com o jogo a correr, deslizar em qualquer sítio do ecrã (fora dos botões) também vira a cobra. */
+  let docSwipe = null;
+  function docDown(e) {
+    if (!S || S.state !== "run" || e.target === cv || (e.target.closest && e.target.closest("button,input,dialog,a"))) return;
+    docSwipe = { x: e.clientX, y: e.clientY };
+  }
+  function docMove(e) {
+    if (!docSwipe) return;
+    const dx = e.clientX - docSwipe.x, dy = e.clientY - docSwipe.y;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 26) return;
+    turn(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up"));
+    docSwipe = { x: e.clientX, y: e.clientY };
+  }
+  function docUp() { docSwipe = null; }
+  function noScroll(e) { if (S && S.state === "run" && !modal.isOpen) e.preventDefault(); }
   function resize() {
     if (!cv) return;
     const area = els.board, wide = innerWidth >= 900;
