@@ -47,7 +47,8 @@
 
 /* ---------- Base ---------- */
 *,*::before,*::after{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%;background:var(--bg)}
+/* manipulation em toda a página: sem zoom ao tocar duas vezes (qualquer jogo, menu ou janela); arrastar e o zoom com dois dedos continuam. */
+html{-webkit-text-size-adjust:100%;background:var(--bg);touch-action:manipulation}
 /* Nada pode alargar a página (as cartas entram de fora do ecrã): sem isto, o telemóvel afasta o zoom. */
 html,body{overflow-x:hidden;overflow-x:clip}
 body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.45 var(--font);-webkit-tap-highlight-color:transparent;min-height:100dvh}
