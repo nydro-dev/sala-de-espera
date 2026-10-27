@@ -1,7 +1,7 @@
 /* Sala de Espera — menu, navegação entre ecrãs, relógio comum e arranque. */
 (function () {
   "use strict";
-  const { $, el, esc, store, settings, ranking, modal, sound, toast, games, gameById } = Sala;
+  const { $, el, esc, fmtNum, fmtTime, store, settings, ranking, modal, sound, toast, games, gameById, daily, ui } = Sala;
 
   /* ---------- Migração da versão anterior (ficheiro único) ---------- */
   if (!store.get("migrated", false)) {
@@ -20,8 +20,50 @@
   /* ---------- Jogos que vêm a seguir ---------- */
   const SOON = []; /* jogos por fazer: { name, desc, art } */
 
+  /* ---------- Desafio do dia (topo do menu) ---------- */
+  const SHORT = { sudoku: "🔢", minas: "💣", soli: "🃏" };
+  function dailyState(g) {
+    const r = daily.result(g.id);
+    if (r) return { done: true, r, text: r.won ? fmtNum(r.score) + " pts" : (g.dailyLost || "Sem vitória") + (r.score ? " · " + fmtNum(r.score) : ""), cls: r.won ? "good" : "" };
+    if (g.dailyPlaying && g.dailyPlaying()) return { done: false, text: "A meio", cls: "blue" };
+    return { done: false, text: "Por jogar", cls: "yellow" };
+  }
+  function drawDaily() {
+    const box = $("m-daily"); box.innerHTML = "";
+    const list = daily.GAMES.map(gameById).filter(g => g && g.ready && g.daily);
+    if (!list.length) { box.hidden = true; return; }
+    box.hidden = false;
+    const states = list.map(dailyState), done = states.filter(s => s.done).length;
+    const head = el("div", { class: "daily-head" }, '<span class="ico" aria-hidden="true">' + ui.ICON.cal + '</span><div><h2>Desafio do dia</h2><p>' + esc(daily.long()) + " · " + (done === list.length ? "Feito. Volta amanhã." : "O mesmo para toda a gente. Só a primeira tentativa conta.") + "</p></div>");
+    if (done) {
+      const b = el("button", { class: "btn", type: "button", "aria-label": "Partilhar o desafio do dia" }, ui.ICON.share + "<span>Partilhar</span>");
+      b.onclick = () => shareDay(list, states);
+      head.appendChild(b);
+    }
+    const row = el("div", { class: "daily-games" });
+    list.forEach((g, k) => {
+      const s = states[k];
+      const b = el("button", { class: "dg" + (s.done ? " done" : ""), type: "button", "aria-label": g.name + " do dia, " + s.text });
+      b.innerHTML = '<span class="art">' + g.art + "</span><b>" + esc(g.name) + '</b><span class="chip ' + s.cls + '">' + esc(s.text) + "</span>";
+      b.onclick = () => { sound.tap(); go(g.id + "/dia"); };
+      row.appendChild(b);
+    });
+    box.append(head, row);
+  }
+  function shareDay(list, states) {
+    const ds = daily.today();
+    let total = 0;
+    const lines = list.map((g, k) => {
+      const s = states[k]; if (s.done) total += s.r.score || 0;
+      return g.name + ": " + (s.done ? (s.r.won ? fmtNum(s.r.score) + " pts em " + fmtTime(s.r.time) : (g.dailyLost || "sem vitória") + (s.r.score ? " · " + fmtNum(s.r.score) + " pts" : "")) : "por jogar");
+    });
+    const text = "Sala de Espera · Desafio do dia " + daily.label(ds) + "\n" + list.map((g, k) => SHORT[g.id] + " " + lines[k]).join("\n") + "\nTotal: " + fmtNum(total) + " pts\n" + Sala.SITE;
+    Sala.share({ title: "Desafio do dia", sub: daily.label(ds), big: fmtNum(total), unit: "pts", lines, text });
+  }
+
   /* ---------- Menu ---------- */
   function drawMenu() {
+    drawDaily();
     const box = $("m-cards"); box.innerHTML = "";
     games.filter(g => g.ready).forEach(g => {
       const b = el("button", { class: "card", type: "button" });
@@ -40,17 +82,20 @@
   /* ---------- Navegação (#/sudoku, #/minas) ---------- */
   let active = null, fromMenu = false;
   function go(id) { fromMenu = !!id && !active; location.hash = id ? "#/" + id : ""; }
+  Sala.go = go;
   function route() {
-    const id = (location.hash.match(/^#\/(\w+)/) || [])[1];
-    const g = id && gameById(id);
+    const mm = location.hash.match(/^#\/(\w+)(?:\/(\w+))?/) || [];
+    const id = mm[1], g = id && gameById(id);
+    const isDaily = mm[2] === "dia" && g && g.daily;
     if (modal.isOpen) modal.close(true);
     if (active) { active.unmount(); active = null; }
     const body = { stats: $("g-stats"), board: $("g-board"), controls: $("g-controls") };
     Object.values(body).forEach(n => n.innerHTML = "");
     if (g && g.ready) {
       $("v-menu").hidden = true; $("v-game").hidden = false;
-      $("g-title").textContent = g.name; document.title = g.name + " · Sala de Espera";
-      active = g; g.mount(body);
+      const t = isDaily ? g.name + " do dia" : g.name;
+      $("g-title").textContent = t; document.title = t + " · Sala de Espera";
+      active = g; g.mount(body, { daily: !!isDaily });
       if (!store.get("seenHelp:" + g.id, false)) { store.set("seenHelp:" + g.id, true); setTimeout(() => Sala.showHelp(g.id), 250); }
     } else {
       $("v-game").hidden = true; $("v-menu").hidden = false; document.title = "Sala de Espera";
@@ -63,7 +108,7 @@
   /* Voltar: se viemos do menu, recua no histórico (o botão de recuar do Android fica coerente). */
   $("g-back").onclick = () => { sound.tap(); if (fromMenu) { fromMenu = false; history.back(); } else go(""); };
   $("g-help").onclick = () => active && Sala.showHelp(active.id);
-  $("g-rank").onclick = () => active && Sala.showRanking(active.id, active.lastDiff && active.lastDiff());
+  $("g-rank").onclick = () => active && Sala.showRanking(active.id, /\/dia$/.test(location.hash) ? "dia" : active.lastDiff && active.lastDiff());
   $("m-rank").onclick = () => Sala.showRanking();
   $("m-settings").onclick = () => Sala.showSettings();
 

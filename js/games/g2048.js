@@ -188,6 +188,7 @@
   }
 
   Sala.registerGame({
+    statsKind: "score",
     id: "g2048", name: "2048", ready: true, diffs: DIFFS.map(d => ({ id: d.id, label: d.label })),
     desc: "Juntar peças iguais até chegar ao 2048.",
     art: '<svg viewBox="0 0 36 36"><rect x="2" y="2" width="15" height="15" rx="3" fill="var(--blue)"/><rect x="19" y="2" width="15" height="15" rx="3" fill="var(--yellow)"/><rect x="2" y="19" width="15" height="15" rx="3" fill="var(--cover)"/><rect x="19" y="19" width="15" height="15" rx="3" fill="var(--ink)"/><text x="26.5" y="30" font-size="7" font-weight="900" text-anchor="middle" fill="var(--yellow)" font-family="Roboto,sans-serif">2048</text></svg>',

@@ -1,7 +1,7 @@
 /* Sala de Espera — Solitário (Klondike, a tirar 3 cartas do baralho) */
 (function () {
   "use strict";
-  const { el, fmtNum, fmtTime, store, sound, vibrate, motion, toast, modal, ranking, ui, finish, shuffle, clamp } = Sala;
+  const { el, esc, fmtNum, fmtTime, store, sound, vibrate, motion, toast, modal, ranking, ui, finish, shuffle, clamp, daily, stats: ST } = Sala;
 
   const DIFFS = [{ id: "d3", label: "3 cartas" }];
   const RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
@@ -12,20 +12,25 @@
   const BONUS = 1000, BONUS_T = 900; /* o bónus desce de 1000 a 0 em 15 minutos */
   const HIST = 60, LABEL = "3 cartas";
 
-  let S = null, els = null, drag = null, busy = false, autoT = 0;
+  let S = null, els = null, drag = null, busy = false, autoT = 0, isDaily = false;
+  const KEY = () => isDaily ? "soli:dia" : "soli";
   let geo = null;
   const P = new Map(); /* posição de cada carta: c → { x, y, z } */
   const flipped = new Set();
 
   /* ---------- Estado ---------- */
-  function fresh() {
-    const d = shuffle([...Array(52).keys()]);
+  function fresh(rnd) {
+    const d = shuffle([...Array(52).keys()], rnd);
     const tab = [];
     for (let i = 0; i < 7; i++) { const col = []; for (let j = 0; j <= i; j++) col.push({ c: d.pop(), up: j === i }); tab.push(col); }
     return { diff: "d3", stock: d, waste: [], found: [[], [], [], []], tab, score: 0, time: 0, moves: 0, passes: 0, undos: 0, over: false, won: false, hist: [] };
   }
-  function load() { const d = store.get("soli", null); if (d && d.tab && d.found) { S = d; if (!S.hist) S.hist = []; return true; } return false; }
-  const save = () => { if (S) store.set("soli", S); };
+  function load() {
+    const d = store.get(KEY(), null);
+    if (d && d.tab && d.found && (!isDaily || d.daily === daily.today())) { S = d; if (!S.hist) S.hist = []; return true; }
+    return false;
+  }
+  const save = () => { if (S) store.set(KEY(), S); };
   const lastDiff = () => "d3";
   const addPts = n => { S.score = Math.max(0, S.score + n); };
   function snapshot() {
@@ -33,18 +38,48 @@
     if (S.hist.length > HIST) S.hist.shift();
   }
 
-  function newGame() {
+  function newGame(practice) {
     clearTimeout(autoT); busy = false;
-    S = fresh(); save();
-    if (els) { els.board.classList.remove("win"); build(); render(); msg(""); }
+    if (isDaily) { const ds = daily.today(); S = fresh(daily.rng("soli", ds)); S.daily = ds; if (practice === true) S.practice = true; }
+    else S = fresh();
+    save();
+    if (els) { els.board.classList.remove("win"); build(); render(); msg(isDaily ? dailyMsg() : ""); }
   }
   function askNew() {
     if (!S || S.over || !S.moves) return newGame();
     modal.open({
       title: "Desistir deste jogo?",
       body: "<p>Este jogo (" + fmtNum(S.score) + " pontos) fica sem efeito e não entra no ranking.</p>",
-      actions: [{ label: "Continuar este" }, { label: "Novo jogo", primary: true, onClick: newGame }]
+      actions: [{ label: "Continuar este" }, { label: "Novo jogo", primary: true, onClick: () => { ST.record("soli", "d3", { won: false, time: S.time }); newGame(); } }]
     });
+  }
+  const dailyMsg = () => {
+    const r = daily.result("soli");
+    if (S && S.practice && !S.over) return "Repetição: esta não conta.";
+    if (r) return r.won ? "Desafio feito: " + fmtNum(r.score) + " pontos em " + fmtTime(r.time) + "." : "Desafio de hoje terminado com " + fmtNum(r.score) + " pontos.";
+    return "Sem saída? Termina e ficam os pontos que fizeste.";
+  };
+  /* Desafio do dia: o baralho pode não ter solução, por isso dá para terminar e ficar com os pontos. */
+  function askEnd() {
+    if (busy || S.over) return;
+    if (!S.moves) { toast("Ainda não fizeste nenhuma jogada."); return; }
+    modal.open({
+      title: "Terminar o desafio?",
+      body: "<p>Ficas com os " + fmtNum(S.score) + " pontos que tens agora" + (S.practice ? "" : " e é esse o resultado de hoje") + ". O bónus de tempo só conta se arrumares as cartas todas.</p>",
+      actions: [{ label: "Continuar a jogar" }, { label: "Terminar", primary: true, onClick: () => { setTimeout(endDaily, 0); } }]
+    });
+  }
+  function endDaily() {
+    S.over = true; S.won = false; S.hist = []; busy = false; save(); render();
+    const found = S.found.reduce((a, f) => a + f.length, 0), dd = S.daily, practice = !!(S.practice || daily.result("soli", dd));
+    finish({
+      game: "soli", diff: "d3", diffLabel: LABEL, title: "Desafio terminado", score: S.score, time: S.time, won: false, daily: dd, practice,
+      breakdown: [["Cartas nas fundações", found + " de 52"], ["Voltas ao baralho", String(S.passes)], ["Desfazer usados", String(S.undos)], ["Tempo", fmtTime(S.time)]],
+      extra: { moves: S.moves, found },
+      share: { lost: found + "/52 cartas", lines: [found + " de 52 cartas arrumadas", "Tempo " + fmtTime(S.time)] },
+      newLabel: "Jogo normal", onNew: () => Sala.go("soli")
+    });
+    if (els) msg(dailyMsg());
   }
 
   /* ---------- Regras ---------- */
@@ -162,15 +197,24 @@
       els.board.querySelectorAll(".sl-card").forEach(n => n.style.setProperty("--d", ((P.get(+n.dataset.c) || {}).z || 0) % 13 * 45 + "ms"));
       els.board.classList.add("win");
     }
-    setTimeout(() => finish({
-      game: "soli", diff: "d3", diffLabel: LABEL, title: "Ganhaste", score: total, time: S.time,
-      breakdown: [["Pontos das jogadas", fmtNum(S.score)], ["Bónus de tempo", "+" + fmtNum(bonus)], ["Voltas ao baralho", String(S.passes)], ["Desfazer usados", String(S.undos)], ["Tempo", fmtTime(S.time)]],
-      extra: { moves: S.moves }, onNew: newGame
-    }), motion() ? 1100 : 150);
+    const dd = S.daily, practice = !!(dd && (S.practice || daily.result("soli", dd)));
+    setTimeout(() => {
+      finish({
+        game: "soli", diff: "d3", diffLabel: LABEL, title: "Ganhaste", score: total, time: S.time, daily: dd, practice,
+        breakdown: [["Pontos das jogadas", fmtNum(S.score)], ["Bónus de tempo", "+" + fmtNum(bonus)], ["Voltas ao baralho", String(S.passes)], ["Desfazer usados", String(S.undos)], ["Tempo", fmtTime(S.time)]],
+        extra: { moves: S.moves },
+        share: { lines: ["52 de 52 cartas arrumadas", "Tempo " + fmtTime(S.time)] },
+        newLabel: dd ? "Jogo normal" : "Novo jogo",
+        onNew: () => dd ? Sala.go("soli") : newGame()
+      });
+      if (dd && els) msg(dailyMsg());
+    }, motion() ? 1100 : 150);
   }
 
   /* ---------- Ecrã ---------- */
-  function mount(c) {
+  function mount(c, opts) {
+    const want = !!(opts && opts.daily);
+    if (want !== isDaily) { save(); S = null; isDaily = want; }
     if (!S && !load()) newGame();
     els = c; busy = false; drag = null;
     c.stats.innerHTML = ui.stat("Pontos", "sl-score", "hl") + ui.stat("Tempo", "sl-time") + ui.stat("Jogadas", "sl-moves") + ui.stat("Recorde", "sl-best");
@@ -181,19 +225,28 @@
     auto.onclick = autoFinish;
     const row = el("div", { class: "casino-actions" });
     const bUndo = el("button", { class: "btn", type: "button", id: "sl-undob" }, ui.ICON.undo + "Desfazer"); bUndo.onclick = undo;
-    const bNew = el("button", { class: "btn", type: "button" }, ui.ICON.plus + "Novo jogo"); bNew.onclick = askNew;
-    row.append(bUndo, bNew);
+    if (isDaily) {
+      const bEnd = el("button", { class: "btn", type: "button", id: "sl-end" }, '<svg viewBox="0 0 24 24"><path d="M5 21V4"/><path d="M5 4h12l-2.5 4L17 12H5"/></svg>Terminar'); bEnd.onclick = askEnd;
+      const bAgain = el("button", { class: "btn", type: "button", id: "sl-again", hidden: true }, ui.ICON.undo + "Repetir"); bAgain.onclick = () => newGame(true);
+      const bNorm = el("button", { class: "btn", type: "button" }, ui.ICON.plus + "Jogo normal"); bNorm.onclick = () => Sala.go("soli");
+      row.append(bUndo, bEnd, bAgain, bNorm);
+    } else {
+      const bNew = el("button", { class: "btn", type: "button" }, ui.ICON.plus + "Novo jogo"); bNew.onclick = askNew;
+      row.append(bUndo, bNew);
+    }
     const tip = el("p", { class: "hint" }, '<span class="for-touch">Toca numa carta para a mandar para o melhor sítio, ou arrasta-a.</span><span class="for-mouse">Clica numa carta para a mandar para o melhor sítio, ou arrasta-a. <kbd>Espaço</kbd> vira o baralho, <kbd>Ctrl</kbd>+<kbd>Z</kbd> desfaz.</span>');
+    if (isDaily) c.controls.append(el("div", { class: "mode-tag" }, ui.ICON.cal + "Desafio de " + esc(daily.label(S.daily)) + " · 3 cartas"));
     c.controls.append(auto, row, tip);
     board.addEventListener("pointerdown", down);
     board.addEventListener("pointermove", moveDrag);
     board.addEventListener("pointerup", up);
     board.addEventListener("pointercancel", cancelDrag);
     build(); render();
-    if (S.over) msg(S.won ? "Jogo ganho. Começa outro quando quiseres." : "");
+    if (isDaily) msg(dailyMsg());
+    else if (S.over) msg(S.won ? "Jogo ganho. Começa outro quando quiseres." : "");
     addEventListener("resize", onResize);
   }
-  function unmount() { clearTimeout(autoT); busy = false; save(); removeEventListener("resize", onResize); els = null; drag = null; }
+  function unmount() { clearTimeout(autoT); busy = false; save(); removeEventListener("resize", onResize); els = null; drag = null; if (isDaily) { S = null; isDaily = false; } }
   function onResize() { if (els) { layout(); render(); } }
   function msg(t, bad) { const m = document.getElementById("sl-msg"); if (m) { m.textContent = t; m.className = "msg" + (bad ? " bad" : ""); } }
 
@@ -263,7 +316,9 @@
     if (stockSlot) stockSlot.classList.toggle("again", !S.stock.length && S.waste.length > 0);
     const set = (id, v) => { const x = document.getElementById(id); if (x) x.textContent = v; };
     set("sl-score", fmtNum(S.score)); set("sl-time", fmtTime(S.time)); set("sl-moves", fmtNum(S.moves));
-    const best = ranking.best("soli", "d3"); set("sl-best", best ? fmtNum(best.score) : "—");
+    const best = ranking.best("soli", isDaily ? "dia" : "d3"); set("sl-best", best ? fmtNum(best.score) : "—");
+    const be = document.getElementById("sl-end"), ba = document.getElementById("sl-again");
+    if (be) be.hidden = S.over; if (ba) ba.hidden = !S.over;
     const u = document.getElementById("sl-undob"); if (u) u.disabled = !S.hist.length || S.over || busy;
     const a = document.getElementById("sl-auto"); if (a) a.hidden = !canAuto() && !busy;
   }
@@ -335,7 +390,8 @@
       "<li><b>Teclado:</b> <kbd>Espaço</kbd> vira o baralho, <kbd>Ctrl</kbd>+<kbd>Z</kbd> desfaz.</li><li><b>Completar sozinho:</b> aparece quando já estão todas as cartas viradas.</li></ul>" +
       "<h4>Pontuação</h4><ul><li>+10 por carta nas fundações; +5 por carta do baralho levada para as colunas; +5 por cada carta tapada que se vira.</li>" +
       "<li>−15 se uma carta sair das fundações; −20 por cada volta ao baralho; −10 por cada desfazer.</li>" +
-      "<li>Ao ganhar soma-se o bónus de tempo: 1000 pontos, que descem até 0 aos 15 minutos.</li><li>Só os jogos ganhos entram no top 10.</li></ul>";
+      "<li>Ao ganhar soma-se o bónus de tempo: 1000 pontos, que descem até 0 aos 15 minutos.</li><li>Só os jogos ganhos entram no top 10.</li></ul>" +
+      "<h4>Desafio do dia</h4><p>O mesmo baralho para toda a gente nesse dia. Como nem todos os baralhos têm solução, podes <b>Terminar</b> quando não houver saída e ficas com os pontos das jogadas. Só a primeira tentativa conta.</p>";
   }
 
   Sala.registerGame({
@@ -343,6 +399,8 @@
     desc: "O clássico das cartas, com sete colunas.",
     art: '<svg viewBox="0 0 36 36"><rect x="5" y="4" width="18" height="25" rx="3" fill="var(--cover)" transform="rotate(-10 14 16)"/><rect x="13" y="7" width="18" height="25" rx="3" fill="var(--surface)" stroke="var(--ink)" stroke-width="1.5"/><path d="M22 14c-2.5 3-4 4.4-4 6a2 2 0 0 0 4 .3 2 2 0 0 0 4-.3c0-1.6-1.5-3-4-6z" fill="var(--ink)"/></svg>',
     lastDiff, emptyText: "Ainda não há jogos ganhos.<br>O primeiro é teu.",
+    daily: true, dailyLost: "Terminado",
+    dailyPlaying() { const d = store.get("soli:dia", null); return !!(d && d.daily === daily.today() && !d.over && d.moves && !d.practice); },
     meta() {
       const out = []; if (!S) load();
       if (S && !S.over && S.moves) out.push({ text: "Jogo a meio · " + fmtNum(S.score) + " pts", cls: "blue" });

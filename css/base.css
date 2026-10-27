@@ -351,7 +351,6 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 .rl-wheel{position:relative;width:min(300px,78vw);aspect-ratio:1;max-width:100%}
 .rl-wheel canvas{width:100%;height:100%;display:block}
 .rl-ballmark{position:absolute;left:0;top:0;width:5.5%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff 0 25%,#dcdcdc 55%,#8f8f8f 100%);box-shadow:0 2px 3px rgba(0,0,0,.55);pointer-events:none;will-change:transform;z-index:1}
-.rl-wheel .ptr{position:absolute;left:50%;top:-4px;transform:translateX(-50%);width:0;height:0;border-left:11px solid transparent;border-right:11px solid transparent;border-top:20px solid var(--yellow);filter:drop-shadow(0 2px 2px rgba(0,0,0,.4))}
 .rl-result{display:flex;align-items:center;justify-content:center;gap:10px;font-weight:700}
 .rl-ball{display:inline-grid;place-items:center;min-width:44px;height:44px;padding:0 8px;border-radius:50%;font-size:1.25rem;font-weight:900;color:#fff;background:var(--line-strong)}
 .rl-ball.red{background:#C0262D}.rl-ball.black{background:#1A181D;box-shadow:inset 0 0 0 2px #555}.rl-ball.green{background:#0B6E4F}
@@ -450,3 +449,37 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 .cb-wrap{display:grid;place-items:center;width:100%}
 html.cb-lock,html.cb-lock body{overscroll-behavior:none;touch-action:none;overflow:hidden}
 .cb-canvas{display:block;border-radius:12px;box-shadow:var(--shadow);touch-action:none;user-select:none;-webkit-user-select:none;cursor:pointer}
+
+/* ---------- Partilhar e estatísticas ---------- */
+.result .badge.muted{background:var(--sunken);color:var(--muted)}
+.result .share-btn{margin-top:14px}
+.share-prev{display:flex;flex-direction:column;gap:12px}
+.share-prev img{width:100%;max-width:360px;margin:0 auto;border-radius:12px;display:block;box-shadow:var(--shadow)}
+.share-text{margin:0;padding:10px 12px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line);font:400 .85rem/1.45 var(--font);white-space:pre-wrap;word-break:break-word;color:var(--ink)}
+.seg.tabs{margin-bottom:10px}
+.st-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.st-grid .stat b{font-size:1.25rem}
+.st-note{margin-top:12px}
+
+/* ---------- Desafio do dia (menu) ---------- */
+.daily{border-radius:var(--r);border:1px solid color-mix(in srgb,var(--yellow) 55%,var(--line));background:linear-gradient(135deg,var(--yellow-soft),var(--surface) 70%);padding:16px;display:flex;flex-direction:column;gap:12px;box-shadow:var(--shadow)}
+.daily-head{display:flex;align-items:center;gap:12px}
+.daily-head .ico{width:42px;height:42px;border-radius:12px;background:var(--yellow);color:var(--on-accent);display:grid;place-items:center;flex:none}
+.daily-head .ico svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.daily-head h2{font-size:1.15rem;font-weight:900}
+.daily-head p{margin:1px 0 0;color:var(--muted);font-size:.85rem}
+.daily-head>div{flex:1;min-width:0}
+.daily-head .btn{min-height:38px;padding:0 12px}
+.daily-games{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.dg{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 6px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--surface);color:var(--ink);text-align:center;min-width:0}
+.dg:hover{border-color:var(--blue)}
+.dg .art{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;background:var(--blue-soft)}
+.dg .art svg{width:26px;height:26px}
+.dg b{font-size:.92rem;font-weight:700}
+.dg .chip{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dg.done{background:var(--surface-2)}
+.chip.good{background:var(--good);color:#fff}
+:root[data-theme="dark"] .chip.good{color:var(--on-accent)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .chip.good{color:var(--on-accent)}}
+.mode-tag{display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 12px;border-radius:var(--r-sm);background:var(--yellow-soft);border:1px solid color-mix(in srgb,var(--yellow) 55%,var(--line));font-weight:700;font-size:.9rem}
+.mode-tag svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}

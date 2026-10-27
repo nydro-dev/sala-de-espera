@@ -1,7 +1,7 @@
 /* Sala de Espera — Palavras (descobrir uma palavra de cinco letras em seis tentativas) */
 (function () {
   "use strict";
-  const { el, fmtNum, fmtTime, store, sound, vibrate, motion, fx, toast, ranking, ui, finish } = Sala;
+  const { el, fmtNum, fmtTime, store, sound, vibrate, motion, fx, toast, ranking, ui, finish, stats: ST } = Sala;
 
   const LEN = 5, TRIES = 6;
   const DIFFS = [{ id: "dia", label: "Palavra do dia" }, { id: "livre", label: "Jogo livre" }];
@@ -32,6 +32,16 @@
     /* A sequência quebra se falhou um dia inteiro. */
     if (P.lastWin && dayNumber(today()) - dayNumber(P.lastWin) > 1) P.streak = 0;
     store.set("palavras", P);
+    /* As Palavras já contavam jogos e vitórias: passam para as estatísticas comuns (uma vez). */
+    if (!store.get("statsSeeded:palavras", false)) {
+      const d = P.stats.dia, l = P.stats.livre;
+      if (d.played || l.played) {
+        ST.seed("palavras", "dia", { played: d.played, won: d.won, streak: P.streak, best: P.bestStreak });
+        ST.seed("palavras", "livre", { played: l.played, won: l.won });
+        ST.seed("palavras", "*", { played: d.played + l.played, won: d.won + l.won, streak: P.streak, best: P.bestStreak });
+      }
+      store.set("statsSeeded:palavras", true);
+    }
   }
   const save = () => { if (P) store.set("palavras", P); };
   const G = () => P.games[P.mode];
@@ -81,6 +91,7 @@
       }
     } else if (g.mode === "dia") P.streak = 0;
     g.points = won ? pointsFor(g) : 0;
+    if (!won) ST.record("palavras", g.mode, { won: false, time: g.time });
   }
   function pointsFor(g) {
     const base = POINTS[g.guesses.length - 1];
@@ -95,6 +106,7 @@
     finish({
       game: "palavras", diff: g.mode, diffLabel: dl, title: g.mode === "dia" ? "Palavra do dia nº " + g.n : "Acertaste", score: g.points, time: g.time,
       breakdown: [["Tentativas", g.guesses.length + " de " + TRIES], ["Pontos pela tentativa", fmtNum(base)]].concat(g.mode === "dia" ? [["Sequência de " + P.streak + " dia" + (P.streak > 1 ? "s" : ""), "+" + fmtNum(g.points - base)]] : []),
+      share: shareInfo(g),
       newLabel: g.mode === "dia" ? "Jogo livre" : "Outra palavra",
       onNew: () => { if (g.mode === "dia") setMode("livre"); else newFree(); }
     });
@@ -110,13 +122,19 @@
     const g = G(); if (g.done || g.mode !== "livre") return;
     endGame(false); save(); renderAll(); msg("A palavra era " + g.word.toUpperCase() + ".", true);
   }
-  async function share() {
-    const g = G(); if (!g.done) return;
+  /* Partilha sem revelar a palavra: só as cores de cada tentativa. */
+  function shareInfo(g) {
     const head = (g.mode === "dia" ? "Palavras nº " + g.n : "Palavras · jogo livre") + " · " + (g.won ? g.guesses.length : "X") + "/" + TRIES;
-    const grid = g.guesses.map(w => score(w, g.word).map(r => r === "correct" ? "🟦" : r === "present" ? "🟨" : "⬜").join("")).join("\n");
-    const text = head + "\n" + grid;
-    try { await navigator.clipboard.writeText(text); toast("Resultado copiado. Já o podes colar numa mensagem."); }
-    catch (e) { toast("Não consegui copiar automaticamente."); }
+    const rows = g.guesses.map(w => score(w, g.word).map(r => r === "correct" ? 2 : r === "present" ? 1 : 0));
+    const text = "Sala de Espera · " + head + "\n" + rows.map(r => r.map(v => ["⬜", "🟨", "🟦"][v]).join("")).join("\n") + "\n" + Sala.SITE;
+    const lines = [g.won ? "Acertou à " + g.guesses.length + ".ª tentativa" : "Não acertou desta vez"];
+    if (g.mode === "dia" && P.streak) lines.push("Sequência de " + P.streak + (P.streak === 1 ? " dia" : " dias"));
+    return { title: "Palavras", sub: g.mode === "dia" ? "Palavra do dia nº " + g.n : "Jogo livre", lost: "X/" + TRIES, lines, grid: rows, text };
+  }
+  function share() {
+    const g = G(); if (!g.done) return;
+    const i = shareInfo(g);
+    Sala.share({ title: i.title, sub: i.sub, big: (g.won ? g.guesses.length : "X") + "/" + TRIES, unit: "", lines: i.lines, grid: i.grid, text: i.text });
   }
 
   /* ---------- Ecrã ---------- */
@@ -140,7 +158,7 @@
       kb.appendChild(row);
     });
     const actions = el("div", { class: "casino-actions", id: "w-actions" });
-    const bShare = el("button", { class: "btn", type: "button", id: "w-share" }, "Copiar resultado"); bShare.onclick = share;
+    const bShare = el("button", { class: "btn", type: "button", id: "w-share" }, ui.ICON.share + "Partilhar"); bShare.onclick = share;
     const bNew = el("button", { class: "btn", type: "button", id: "w-new" }, ui.ICON.plus + "Outra palavra"); bNew.onclick = () => { const g = P.games.livre; if (!g.done && g.guesses.length) giveUp(); newFree(); };
     actions.append(bShare, bNew);
     const tip = el("p", { class: "hint", id: "w-tip" });

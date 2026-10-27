@@ -86,7 +86,7 @@
 
   /* Ranking comum aos dois jogos (não aparece no menu). */
   Sala.registerGame({
-    id: "casino", name: "Casino", ready: false, rankable: true,
+    id: "casino", name: "Casino", ready: false, rankable: true, statsKind: "score",
     diffs: [{ id: "banca", label: "Maior saldo" }],
     unitLabel: "Fichas",
     emptyText: "Ainda não há bancas fechadas.<br>Uma banca entra aqui quando falir ou quando a fechares.",

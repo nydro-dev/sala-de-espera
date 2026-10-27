@@ -110,7 +110,7 @@
         fx.burst(rc.left + (h[1] + .5) * cs, rc.top + (h[0] + .5) * cs);
       }
     }
-    if (!S.score) { msg("Sem pontos desta vez. Tenta outra vez.", true); return; }
+    if (!S.score) { Sala.stats.record("cobra", keyOf(S.speed, S.mode), { time: S.time, score: 0 }); msg("Sem pontos desta vez. Tenta outra vez.", true); return; }
     msg(full ? "" : "Fim de jogo.", !full);
     const lbl = labelOf(S.speed, S.mode);
     setTimeout(() => {
@@ -324,6 +324,7 @@
   }
 
   Sala.registerGame({
+    statsKind: "score",
     id: "cobra", name: "Cobra", ready: true, diffs: SPEEDS.map(s => ({ id: s.id, label: s.label })), rankModes: MODES,
     desc: "Comer, crescer e não bater em nada.",
     art: '<svg viewBox="0 0 36 36"><path d="M6 28h12V18h12V8" fill="none" stroke="var(--blue)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="30" cy="8" r="3.5" fill="var(--ink)"/><circle cx="9" cy="10" r="3" fill="var(--yellow)"/></svg>',

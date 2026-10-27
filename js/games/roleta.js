@@ -104,7 +104,7 @@
     for (let i = 0; i < 8; i++) { x.save(); x.translate(c, c); x.rotate(i * Math.PI / 4); x.fillStyle = "#1A181D"; x.fillRect(-2, -R * .5, 4, R * .34); x.restore(); }
   }
   function setAngle(a) { const cv = document.getElementById("rl-cv"); if (cv) cv.style.transform = "rotate(" + a + "rad)"; }
-  /* Bola: ângulo no ecrã (−π/2 é o topo, junto ao ponteiro) e raio em fração do raio da roda. */
+  /* Bola: ângulo no ecrã (−π/2 é o topo) e raio em fração do raio da roda. */
   const TOP = -Math.PI / 2, R_TRACK = .9, R_POCKET = .7;
   function setBall(a, rf, show) {
     const b = document.getElementById("rl-ballmark"), w = document.querySelector(".rl-wheel"); if (!b || !w) return;
@@ -112,34 +112,46 @@
     const size = w.clientWidth, c = size / 2, R = c - 2, d = b.offsetWidth || size * .055;
     b.style.transform = "translate(" + (c + Math.cos(a) * R * rf - d / 2) + "px," + (c + Math.sin(a) * R * rf - d / 2) + "px)";
   }
+  /* Ângulo no ecrã da casa de um número, com a roda rodada de "a". */
+  const pocketOf = n => TOP + ORDER.indexOf(n) * SEG;
+  /* Onde a bola fica parada (nas versões antigas a roda parava com o número no topo). */
+  const restAngle = () => S.ballRel != null ? S.angle + S.ballRel : TOP;
   function animate(n, done) {
-    const k = ORDER.indexOf(n);
-    const target0 = -k * SEG;                 /* ângulo em que o número fica por baixo do ponteiro */
+    /* A roda pára num sítio ao acaso: o número só se sabe quando a bola assenta na casa. */
     const from = S.angle % (2 * Math.PI);
-    let delta = target0 - from; while (delta > 0) delta -= 2 * Math.PI;
-    const to = from + delta - 2 * Math.PI * 5;  /* cinco voltas e meia, no sentido contrário ao dos ponteiros */
-    const jitter = (Math.random() - .5) * SEG * .5;
-    S.angle = to + jitter;
-    if (!motion() || !els) { setAngle(S.angle); setBall(TOP, R_POCKET, true); setTimeout(done, motion() ? 0 : 250); return; }
-    /* A bola corre no sentido dos ponteiros, perde velocidade, salta e cai na casa que fica no topo. */
-    const bFrom = S.ballA != null ? S.ballA : TOP, bEnd = TOP + 2 * Math.PI * (Math.ceil((bFrom - TOP) / (2 * Math.PI)) + 8);
-    const t0 = performance.now(), dur = 5200, end = S.angle;
+    const to = from - 2 * Math.PI * (4 + Math.random()) - Math.random() * 2 * Math.PI;
+    const rel = pocketOf(n);
+    S.angle = to; S.ballRel = rel;
+    if (!motion() || !els) { S.ballA = (S.angle + rel) % (2 * Math.PI); setAngle(S.angle); setBall(S.angle + rel, R_POCKET, true); setTimeout(done, motion() ? 0 : 250); return; }
+    const t0 = performance.now(), dur = 6200, pd = .58;                 /* pd: altura em que a bola cai da pista */
+    const ease = p => 1 - Math.pow(1 - p, 3), wheelAt = p => from + (to - from) * ease(p);
+    /* Depois de cair, a bola ainda salta umas casas à frente antes de assentar (e roda com a roda). */
+    const slip = (2 + Math.floor(Math.random() * 4)) * SEG * (Math.random() < .5 ? 1 : -1);
+    const bFrom = S.ballA != null ? S.ballA : TOP;
+    /* Na pista, a bola corre no sentido dos ponteiros e tem de chegar ao ponto exato onde cai. */
+    const land = wheelAt(pd) + rel + slip;
+    let D = land - bFrom; D = ((D % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) + 2 * Math.PI * 7;
+    const eb = p => 1 - Math.pow(1 - p, 2.2), ebEnd = eb(1);
     let lastSeg = -1, bounced = 0;
     const step = now => {
-      const p = Math.min(1, (now - t0) / dur);
-      const e = 1 - Math.pow(1 - p, 3), a = from + (end - from) * e;
+      const p = Math.min(1, (now - t0) / dur), a = wheelAt(p);
       setAngle(a);
-      const eb = 1 - Math.pow(1 - p, 2.4), ba = bFrom + (bEnd - bFrom) * eb;
-      let rf = R_TRACK;
-      if (p > .55 && p < .85) { const q = (p - .55) / .3; rf = R_POCKET + (R_TRACK - R_POCKET) * (1 - q) + Math.abs(Math.sin(q * Math.PI * 3)) * .05 * (1 - q); if (q > bounced / 3) { bounced++; sound.flag(); } }
-      else if (p >= .85) rf = R_POCKET;
+      let ba, rf;
+      if (p < pd) { ba = bFrom + D * eb(p / pd) / ebEnd; rf = R_TRACK; }
+      else {
+        const q = Math.min(1, (p - pd) / .3), qe = 1 - Math.pow(1 - q, 2);
+        ba = a + rel + slip * (1 - qe);
+        rf = R_POCKET + (R_TRACK - R_POCKET) * (1 - qe) + Math.abs(Math.sin(q * Math.PI * 4)) * .06 * (1 - q);
+        if (q < 1 && q > bounced / 4) { bounced++; sound.flag(); }
+      }
       setBall(ba, rf, true);
-      const sg = Math.floor(a / SEG); if (sg !== lastSeg) { lastSeg = sg; if (p < .55) sound.tap(); }
+      const sg = Math.floor(a / SEG); if (sg !== lastSeg) { lastSeg = sg; if (p < pd) sound.tap(); }
       if (p < 1) raf = requestAnimationFrame(step);
-      else { raf = 0; S.ballA = TOP; vibrate(15); done(); }
+      else { raf = 0; S.ballA = (S.angle + rel) % (2 * Math.PI); vibrate(15); done(); }
     };
     raf = requestAnimationFrame(step);
   }
+
 
   /* ---------- Ecrã ---------- */
   function mount(c) {
@@ -148,7 +160,7 @@
     els = c; spinning = false;
     c.stats.innerHTML = C.statsHtml("rl");
 
-    const wheel = el("div", { class: "rl-wheel" }, '<canvas id="rl-cv" aria-label="Roda da roleta"></canvas><div class="rl-ballmark" id="rl-ballmark" hidden></div><div class="ptr"></div>');
+    const wheel = el("div", { class: "rl-wheel" }, '<canvas id="rl-cv" aria-label="Roda da roleta"></canvas><div class="rl-ballmark" id="rl-ballmark" hidden></div>');
     const result = el("div", { class: "rl-result", id: "rl-res", role: "status" });
     const hist = el("div", { class: "rl-hist", id: "rl-hist", "aria-label": "Últimos números" });
     const note = el("div", { class: "msg", id: "rl-note" });
@@ -167,12 +179,12 @@
     c.controls.append(chips, row1, bClose, tip, kb);
 
     const cv = document.getElementById("rl-cv");
-    requestAnimationFrame(() => { drawWheel(cv); setAngle(S.angle); setBall(TOP, R_POCKET, S.last != null); });
+    requestAnimationFrame(() => { drawWheel(cv); setAngle(S.angle); setBall(restAngle(), R_POCKET, S.last != null); });
     addEventListener("resize", redraw);
     offChange = C.onChange(() => { if (els) C.drawStats("rl", total()); });
     render();
   }
-  function redraw() { const cv = document.getElementById("rl-cv"); if (cv) drawWheel(cv); if (!spinning) setBall(TOP, R_POCKET, S.last != null); }
+  function redraw() { const cv = document.getElementById("rl-cv"); if (cv) drawWheel(cv); if (!spinning) setBall(restAngle(), R_POCKET, S.last != null); }
   function unmount() {
     if (raf) { cancelAnimationFrame(raf); raf = 0; }
     if (S && S.pending) settle();

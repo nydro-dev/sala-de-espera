@@ -9,7 +9,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Sala de Espera">
-<meta name="description" content="Sudoku, Minas, 2048, Palavras, Solitário, Cobra, Blackjack e Roleta para os intervalos, com ranking local.">
+<meta name="description" content="Sudoku, Minas, 2048, Palavras, Solitário, Cobra, Blackjack e Roleta para os intervalos, com desafio do dia, estatísticas e ranking local.">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -38,10 +38,11 @@
         </div>
       </div>
       <div class="head-actions">
-        <button class="icon-btn" id="m-rank" aria-label="Ranking"><svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3a3 3 0 0 1-3 4M7 5H4a3 3 0 0 0 3 4"/></svg></button>
+        <button class="icon-btn" id="m-rank" aria-label="Ranking e estatísticas"><svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3a3 3 0 0 1-3 4M7 5H4a3 3 0 0 0 3 4"/></svg></button>
         <button class="icon-btn" id="m-settings" aria-label="Definições"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
       </div>
     </header>
+    <section class="daily" id="m-daily" aria-label="Desafio do dia" hidden></section>
     <section class="cards" id="m-cards" aria-label="Jogos"></section>
     <footer class="menu-foot">Os jogos e o ranking ficam guardados só neste aparelho.</footer>
   </main>
@@ -52,7 +53,7 @@
       <button class="icon-btn" id="g-back" aria-label="Voltar ao menu"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
       <h2 id="g-title">Jogo</h2>
       <button class="icon-btn" id="g-help" aria-label="Como jogar"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.6"/><circle cx="12" cy="17" r=".6" fill="currentColor"/></svg></button>
-      <button class="icon-btn" id="g-rank" aria-label="Ranking deste jogo"><svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3a3 3 0 0 1-3 4M7 5H4a3 3 0 0 0 3 4"/></svg></button>
+      <button class="icon-btn" id="g-rank" aria-label="Ranking e estatísticas deste jogo"><svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3a3 3 0 0 1-3 4M7 5H4a3 3 0 0 0 3 4"/></svg></button>
     </header>
     <div class="game-body">
       <div class="stats" id="g-stats"></div>

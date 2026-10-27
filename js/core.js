@@ -16,8 +16,16 @@
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const fmtTime = s => { s = Math.max(0, s | 0); const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = String(s % 60).padStart(2, "0"); return h ? h + ":" + String(m).padStart(2, "0") + ":" + x : m + ":" + x; };
   const fmtNum = n => Math.round(n).toLocaleString("pt-PT");
-  const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const shuffle = (a, rnd) => { rnd = rnd || Math.random; for (let i = a.length - 1; i > 0; i--) { const j = rnd() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  /* Gerador com semente: a mesma frase dá sempre a mesma sequência, em qualquer aparelho. */
+  function rng(str) {
+    let h = 1779033703 ^ str.length;
+    for (let i = 0; i < str.length; i++) { h = Math.imul(h ^ str.charCodeAt(i), 3432918353); h = h << 13 | h >>> 19; }
+    let a = h >>> 0;
+    return () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  }
+  const SITE = "https://nydro-dev.github.io/sala-de-espera/";
 
   /* ---------- Armazenamento local (tudo protegido) ---------- */
   const PFX = "sde:";
@@ -203,6 +211,43 @@
     }
   };
 
+  /* ---------- Desafio do dia: o mesmo jogo para toda a gente, a partir da data ---------- */
+  const today = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+  const daily = {
+    today,
+    GAMES: ["sudoku", "minas", "soli"],
+    label: ds => ds.split("-").reverse().join("/"),
+    long(ds) { const [y, m, d] = (ds || today()).split("-").map(Number); return new Date(y, m - 1, d).toLocaleDateString("pt-PT", { weekday: "long", day: "numeric", month: "long" }); },
+    rng: (game, ds) => rng("sala-de-espera:" + game + ":" + (ds || today())),
+    /* Resultado da tentativa que conta (só a primeira de cada dia). */
+    result(game, ds) { const r = store.get("daily", {})[game]; return r && r.date === (ds || today()) ? r : null; },
+    save(game, r) { const all = store.get("daily", {}); all[game] = r; store.set("daily", all); }
+  };
+
+  /* ---------- Estatísticas por jogo e dificuldade ("*" junta todas) ---------- */
+  const stats = {
+    all() { return store.get("stats", {}); },
+    get(game, diff) { return (stats.all()[game] || {})[diff] || null; },
+    blank: () => ({ played: 0, won: 0, streak: 0, best: 0, tSum: 0, tN: 0, tBest: 0, sSum: 0, sBest: 0, tAll: 0 }),
+    /* r: { won: true | false | undefined (jogos só de pontos), time, score } */
+    record(game, diff, r) {
+      const g = gameById(game); if (g && g.rankAs) game = g.rankAs;
+      const all = stats.all(), gs = all[game] || (all[game] = {});
+      for (const k of diff === "*" ? ["*"] : [diff, "*"]) {
+        const b = gs[k] = Object.assign(stats.blank(), gs[k]);
+        b.played++; b.tAll += r.time || 0;
+        if (r.score != null) { b.sSum += r.score; b.sBest = Math.max(b.sBest, r.score); }
+        if (r.won === true) {
+          b.won++; b.streak++; b.best = Math.max(b.best, b.streak);
+          if (r.time) { b.tSum += r.time; b.tN++; b.tBest = b.tBest ? Math.min(b.tBest, r.time) : r.time; }
+        } else if (r.won === false) b.streak = 0;
+      }
+      store.set("stats", all);
+    },
+    /* Junta números de antes de haver estatísticas (as Palavras já guardavam os seus). */
+    seed(game, diff, b) { const all = stats.all(), gs = all[game] || (all[game] = {}); gs[diff] = Object.assign(stats.blank(), b); store.set("stats", all); }
+  };
+
   /* ---------- Registo de jogos ---------- */
   const games = [];
   function registerGame(g) { games.push(g); }
@@ -227,20 +272,104 @@
       bulb: '<svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/></svg>',
       plus: '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
       flag: '<svg viewBox="0 0 24 24"><path d="M5 21V4"/><path d="M5 4h12l-2.5 4L17 12H5"/></svg>',
-      pick: '<svg viewBox="0 0 24 24"><path d="M6 3l13 7.5-5.8 1.6L10.5 18z"/><path d="M13.4 12.3L18 17"/></svg>'
+      pick: '<svg viewBox="0 0 24 24"><path d="M6 3l13 7.5-5.8 1.6L10.5 18z"/><path d="M13.4 12.3L18 17"/></svg>',
+      share: '<svg viewBox="0 0 24 24"><path d="M12 15V3"/><path d="M7.5 7.5L12 3l4.5 4.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>',
+      cal: '<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
+      back: '<svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>'
     }
   };
 
+  /* ---------- Partilhar: texto e imagem nas cores da casa ---------- */
+  /* d: { title, sub, big, unit, lines: [texto], grid: [[0 | 1 | 2]], text } */
+  async function shareImage(d) {
+    try { if (document.fonts) await Promise.race([Promise.all([document.fonts.load("900 100px Roboto"), document.fonts.load("500 40px Roboto")]), new Promise(r => setTimeout(r, 900))]); } catch (e) {}
+    const W = 1080, H = 1080, c = document.createElement("canvas"); c.width = W; c.height = H;
+    const x = c.getContext("2d"), F = (w, s) => w + " " + s + 'px Roboto, "Segoe UI", system-ui, sans-serif';
+    const rr = (px, py, w, h, r) => { x.beginPath(); x.moveTo(px + r, py); x.arcTo(px + w, py, px + w, py + h, r); x.arcTo(px + w, py + h, px, py + h, r); x.arcTo(px, py + h, px, py, r); x.arcTo(px, py, px + w, py, r); x.closePath(); };
+    const fit = (txt, w, size, max) => { x.font = F(w, size); while (size > 24 && x.measureText(txt).width > max) { size -= 4; x.font = F(w, size); } return size; };
+    x.fillStyle = "#1A181D"; x.fillRect(0, 0, W, H);
+    x.fillStyle = "#09B5FF"; x.fillRect(0, 0, W, 14);
+    /* Marca: grelha de 3×3 com a casa do meio azul e uma bola amarela */
+    const M = 80, sq = 26, gp = 7;
+    x.fillStyle = "#2C2931"; rr(M, 64, sq * 3 + gp * 2 + 28, sq * 3 + gp * 2 + 28, 20); x.fill();
+    for (let k = 0; k < 9; k++) {
+      const px = M + 14 + (k % 3) * (sq + gp), py = 78 + ((k / 3) | 0) * (sq + gp);
+      x.fillStyle = k === 4 ? "#09B5FF" : "#4A4552"; rr(px, py, sq, sq, 6); x.fill();
+      if (k === 8) { x.fillStyle = "#FFC301"; x.beginPath(); x.arc(px + sq / 2, py + sq / 2, 9, 0, 6.29); x.fill(); }
+    }
+    x.textBaseline = "alphabetic"; x.fillStyle = "#F1F1F2"; x.font = F(900, 44); x.fillText("Sala de Espera", 222, 118);
+    x.fillStyle = "#B8B8B8"; x.font = F(400, 28); x.fillText("Jogos curtos para os intervalos", 222, 160);
+    /* Jogo e etiqueta */
+    let y = 320;
+    x.fillStyle = "#F1F1F2"; fit(d.title, 900, 92, W - 2 * M); x.fillText(d.title, M, y);
+    if (d.sub) {
+      x.font = F(700, 34); const tw = x.measureText(d.sub).width;
+      x.fillStyle = "#FFC301"; rr(M, y + 32, tw + 44, 60, 30); x.fill();
+      x.fillStyle = "#1A181D"; x.fillText(d.sub, M + 22, y + 74);
+    }
+    y += d.grid ? 230 : 330;
+    /* Pontuação grande */
+    const bs = d.grid ? 150 : 210;
+    x.fillStyle = "#FFC301"; const bsz = fit(d.big, 900, bs, (d.grid ? 520 : W - 2 * M) - 160); x.fillText(d.big, M, y);
+    if (d.unit) { const bw = x.measureText(d.big).width; x.fillStyle = "#B8B8B8"; x.font = F(700, Math.round(bsz * .27)); x.fillText(d.unit, M + bw + 18, y); }
+    y += 72;
+    x.fillStyle = "#F1F1F2";
+    const lw = d.grid ? 500 : W - 2 * M;
+    (d.lines || []).slice(0, 4).forEach(l => { fit(l, 500, 40, lw); x.fillText(l, M, y); y += 56; });
+    if (d.grid) {
+      const n = d.grid[0] ? d.grid[0].length : 5, cs = 62, g2 = 10, gx = W - M - n * cs - (n - 1) * g2;
+      let gy = 430;
+      const col = ["#4A4552", "#FFC301", "#09B5FF"];
+      d.grid.forEach(row => { row.forEach((v, k) => { x.fillStyle = col[v] || col[0]; rr(gx + k * (cs + g2), gy, cs, cs, 10); x.fill(); }); gy += cs + g2; });
+    }
+    x.fillStyle = "#3A3640"; x.fillRect(M, H - 110, W - 2 * M, 2);
+    x.fillStyle = "#4DCBFF"; x.font = F(500, 32); x.fillText(SITE.replace(/^https:\/\//, "").replace(/\/$/, ""), M, H - 58);
+    return new Promise(res => { try { c.toBlob(b => res(b), "image/png"); } catch (e) { res(null); } });
+  }
+  async function copyText(t) {
+    try { await navigator.clipboard.writeText(t); toast("Texto copiado. Já o podes colar numa mensagem."); }
+    catch (e) { toast("Não consegui copiar automaticamente."); }
+  }
+  /* No telemóvel abre logo a folha de partilha do sistema; no PC mostra a imagem com opções. */
+  async function share(d, blobP) {
+    const blob = await (blobP || shareImage(d));
+    const file = blob && typeof File === "function" ? new File([blob], "sala-de-espera.png", { type: "image/png" }) : null;
+    const canFiles = file && navigator.canShare && (() => { try { return navigator.canShare({ files: [file] }); } catch (e) { return false; } })();
+    if (canFiles && matchMedia("(pointer: coarse)").matches) {
+      try { await navigator.share({ files: [file], text: d.text }); return; }
+      catch (e) { if (e && e.name === "AbortError") return; }
+    }
+    const box = el("div", { class: "share-prev" });
+    let url = null;
+    if (blob) { url = URL.createObjectURL(blob); box.appendChild(el("img", { src: url, alt: "Imagem do resultado" })); }
+    box.appendChild(el("pre", { class: "share-text" }, esc(d.text)));
+    const acts = [];
+    if (canFiles) acts.push({ label: "Partilhar…", primary: true, close: false, onClick: () => { navigator.share({ files: [file], text: d.text }).catch(() => {}); } });
+    else if (navigator.share) acts.push({ label: "Partilhar texto", close: false, onClick: () => { navigator.share({ text: d.text }).catch(() => {}); } });
+    if (blob && window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) acts.push({ label: "Copiar imagem", close: false, onClick: () => { navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]).then(() => toast("Imagem copiada.")).catch(() => toast("Não consegui copiar a imagem.")); } });
+    if (blob) acts.push({ label: "Guardar imagem", close: false, onClick: () => { const a = el("a", { href: url, download: "sala-de-espera.png" }); document.body.appendChild(a); a.click(); a.remove(); } });
+    acts.push({ label: "Copiar texto", primary: !canFiles, close: false, onClick: () => { copyText(d.text); } });
+    modal.open({ title: "Partilhar resultado", body: box, className: "share", actions: acts, onClose: () => { if (url) setTimeout(() => URL.revokeObjectURL(url), 1000); } });
+  }
+
   /* ---------- Fim de jogo: pontuação, ranking e janela de resultado ---------- */
   function finish(o) {
-    /* o: { game, diff, diffLabel, title, score, time, breakdown:[[rótulo, valor]], extra, onNew } */
-    const res = ranking.add(o.game, o.diff, { name: settings.name || "Eu", score: o.score, time: o.time, extra: o.extra || null });
+    /* o: { game, diff, diffLabel, title, score, time, breakdown:[[rótulo, valor]], extra, onNew,
+            won (false = jogo perdido ou terminado), daily (data do desafio), practice (repetição que não conta),
+            share: { text, lines, grid } } */
+    const g = gameById(o.game) || {}, won = o.won !== false, unit = o.unit || "pts";
+    const counts = !o.practice;
+    const res = counts && o.score > 0 ? ranking.add(o.game, o.daily ? "dia" : o.diff, { name: settings.name || "Eu", score: o.score, time: o.time, extra: Object.assign({}, o.extra || {}, o.daily ? { day: o.daily } : {}) }) : { pos: 0, id: null };
+    if (counts && !o.noStats) stats.record(o.game, o.daily ? "dia" : o.diff, { won: g.statsKind === "score" ? undefined : won, time: o.time, score: o.score });
+    if (o.daily && counts) daily.save(o.game, { date: o.daily, won, score: o.score, time: o.time, extra: o.extra || null });
     const box = el("div", { class: "result" });
-    let html = '<div class="big">' + fmtNum(o.score) + '<small>' + esc(o.unit || "pts") + '</small></div>';
-    if (res.pos === 1) html += '<div class="badge">Novo recorde · ' + esc(o.diffLabel) + '</div>';
+    let html = '<div class="big">' + fmtNum(o.score) + '<small>' + esc(unit) + '</small></div>';
+    if (o.practice) html += '<div class="badge muted">Repetição · não conta</div>';
+    else if (o.daily) html += '<div class="badge">Desafio do dia · ' + esc(daily.label(o.daily)) + (res.pos === 1 ? " · o teu melhor" : "") + '</div>';
+    else if (res.pos === 1) html += '<div class="badge">Novo recorde · ' + esc(o.diffLabel) + '</div>';
     else if (res.pos) html += '<div class="badge">' + res.pos + '.º lugar · ' + esc(o.diffLabel) + '</div>';
     html += '<div class="breakdown">' + (o.breakdown || []).map(r => '<div><span>' + esc(r[0]) + '</span><span>' + esc(r[1]) + '</span></div>').join("") +
-      '<div class="total"><span>Total</span><span>' + fmtNum(o.score) + ' ' + esc(o.unit || "pts") + '</span></div></div>';
+      '<div class="total"><span>Total</span><span>' + fmtNum(o.score) + ' ' + esc(unit) + '</span></div></div>';
     box.innerHTML = html;
     let nameInput = null;
     if (res.pos && !settings.name) {
@@ -252,56 +381,94 @@
       if (!nameInput) return;
       const n = nameInput.value.trim().slice(0, 16);
       if (n) { setSetting("name", n); ranking.rename(res.id, n); }
+      nameInput = null;
     };
+    /* Partilhar (a imagem começa a ser feita já, para o botão responder logo) */
+    const sd = shareData(o, g, won);
+    const card = shareImage(sd);
+    const bShare = el("button", { class: "btn block share-btn", type: "button" }, ui.ICON.share + "Partilhar resultado");
+    bShare.onclick = () => { saveName(); share(sd, card); };
+    box.appendChild(bShare);
     modal.open({
       title: o.title || "Ganhaste",
       body: box,
       onClose: saveName,
       actions: [
-        { label: "Ver ranking", onClick: () => { saveName(); nameInput = null; setTimeout(() => showRanking(o.game, o.diff, res.id), 0); } },
-        { label: o.newLabel || "Novo jogo", primary: true, onClick: () => { saveName(); nameInput = null; o.onNew && o.onNew(); } }
+        { label: o.daily ? "Estatísticas" : "Ver ranking", onClick: () => { saveName(); setTimeout(() => showRanking(o.game, o.daily ? "dia" : o.diff, res.id, o.daily ? "stats" : "rank"), 0); } },
+        { label: o.newLabel || "Novo jogo", primary: true, onClick: () => { saveName(); o.onNew && o.onNew(); } }
       ]
     });
-    if (res.pos === 1) { sound.win(); vibrate([30, 60, 30, 60, 80]); } else { sound.win(); vibrate([30, 60, 60]); }
-    fx.confetti();
+    if (won) {
+      if (res.pos === 1) { sound.win(); vibrate([30, 60, 30, 60, 80]); } else { sound.win(); vibrate([30, 60, 60]); }
+      fx.confetti();
+    } else { sound.line(); vibrate(30); }
     return res;
   }
+  /* Texto e linhas da partilha, com o que cada jogo quiser acrescentar. */
+  function shareData(o, g, won) {
+    const s = o.share || {}, name = g.name || o.game, unit = o.unit || "pts";
+    const title = s.title || (o.daily ? name + " do dia" : name);
+    const sub = s.sub || (o.daily ? "Desafio de " + daily.label(o.daily) : o.diffLabel);
+    const lines = s.lines || [(won ? "" : (s.lost || "Sem vitória") + " · ") + "Tempo " + fmtTime(o.time)];
+    const head = "Sala de Espera · " + title + (o.daily ? " " + daily.label(o.daily) : " (" + o.diffLabel + ")");
+    const text = s.text || (head + "\n" + fmtNum(o.score) + " " + unit + " · " + lines.join(" · ") + "\n" + SITE);
+    return { title, sub, big: fmtNum(o.score), unit, lines, grid: s.grid || null, text };
+  }
 
-  /* ---------- Janela de ranking ---------- */
-  function showRanking(gameId, diff, highlightId) {
+  /* ---------- Janela de ranking e estatísticas ---------- */
+  function showRanking(gameId, diff, highlightId, view) {
     /* Jogos que partilham ranking (o casino) aparecem uma só vez, com o nome do grupo. */
     const ready = games.filter(x => (x.ready && !x.rankAs) || x.rankable);
     const asked = gameById(gameId);
     if (asked && asked.rankAs) gameId = asked.rankAs;
     let g = gameById(gameId) || ready[0];
+    let mode = view === "stats" ? "stats" : "rank";
+    const DIA = { id: "dia", label: "Do dia" }, ALL = { id: "*", label: "Todas" };
+    const diffsOf = () => (mode === "stats" && g.diffs.length > 1 ? [ALL] : []).concat(g.diffs, g.daily ? [DIA] : []);
     /* Jogos com modos (a Cobra: com ou sem paredes) guardam o ranking em "dificuldade + sufixo do modo". */
     const split = k => {
-      if (!g.rankModes) return [k, null];
+      if (!g.rankModes || k === "dia" || k === "*") return [k, g.rankModes ? g.rankModes[0].id : null];
       const m = g.rankModes.find(x => x.suffix && k.endsWith(x.suffix)) || g.rankModes.find(x => !x.suffix) || g.rankModes[0];
       return [m.suffix ? k.slice(0, -m.suffix.length) : k, m.id];
     };
     let [d, mo] = split(diff || (g && g.lastDiff && g.lastDiff()) || g.diffs[0].id);
-    const key = () => g.rankModes ? d + (g.rankModes.find(x => x.id === mo) || g.rankModes[0]).suffix : d;
+    const key = () => g.rankModes && d !== "dia" && d !== "*" ? d + (g.rankModes.find(x => x.id === mo) || g.rankModes[0]).suffix : d;
     const box = el("div");
+    const tabs = ui.seg([{ id: "rank", label: "Ranking" }, { id: "stats", label: "Estatísticas" }], mode, id => { mode = id; if (!diffsOf().some(x => x.id === d)) d = g.diffs[0].id; draw(); }, "Ver");
+    tabs.classList.add("tabs");
     const filters = el("div", { class: "rank-filters" });
     const table = el("div");
     const draw = () => {
       filters.innerHTML = "";
-      if (!gameId) { const sg = ui.seg(ready.map(x => ({ id: x.id, label: x.name })), g.id, id => { g = gameById(id); if (!g.diffs.some(x => x.id === d)) d = g.diffs[0].id; mo = g.rankModes ? g.rankModes[0].id : null; draw(); }, "Jogo"); sg.classList.add("wrap"); filters.appendChild(sg); }
-      if (g.diffs.length > 1) { const sd = ui.seg(g.diffs, d, id => { d = id; drawTable(); }, "Dificuldade"); if (g.diffs.length > 3) sd.classList.add("wrap"); filters.appendChild(sd); }
-      if (g.rankModes) filters.appendChild(ui.seg(g.rankModes, mo, id => { mo = id; drawTable(); }, "Modo"));
+      if (!gameId) { const sg = ui.seg(ready.map(x => ({ id: x.id, label: x.name })), g.id, id => { g = gameById(id); if (!diffsOf().some(x => x.id === d)) d = g.diffs[0].id; mo = g.rankModes ? g.rankModes[0].id : null; draw(); }, "Jogo"); sg.classList.add("wrap"); filters.appendChild(sg); }
+      const ds = diffsOf();
+      if (ds.length > 1) { const sd = ui.seg(ds, d, id => { d = id; draw(); }, "Dificuldade"); if (ds.length > 3) sd.classList.add("wrap"); filters.appendChild(sd); }
+      if (g.rankModes && d !== "dia" && d !== "*") filters.appendChild(ui.seg(g.rankModes, mo, id => { mo = id; drawTable(); }, "Modo"));
       drawTable();
     };
-    const drawTable = () => {
-      const l = ranking.list(g.id, key());
-      if (!l.length) { table.innerHTML = '<p class="empty">' + (g.emptyText || "Ainda não há pontuações nesta dificuldade.<br>A primeira é tua.") + "</p>"; return; }
-      table.innerHTML = '<table class="rank"><thead><tr><th>#</th><th>Nome</th><th>Tempo</th><th class="pts">' + esc(g.unitLabel || "Pontos") + '</th></tr></thead><tbody>' +
-        l.map((e, i) => '<tr' + (e.id === highlightId ? ' class="me"' : "") + '><td class="pos">' + (i + 1) + '</td><td>' + esc(e.name) + '</td><td>' + fmtTime(e.time) + '</td><td class="pts">' + fmtNum(e.score) + '</td></tr>').join("") +
+    const drawTable = () => mode === "stats" ? drawStats() : drawRank();
+    const drawRank = () => {
+      const l = ranking.list(g.id, key()), isDay = d === "dia";
+      if (!l.length) { table.innerHTML = '<p class="empty">' + (isDay ? "Ainda não fizeste nenhum desafio do dia.<br>O de hoje está à espera no menu." : (g.emptyText || "Ainda não há pontuações nesta dificuldade.<br>A primeira é tua.")) + "</p>"; return; }
+      table.innerHTML = '<table class="rank"><thead><tr><th>#</th><th>' + (isDay ? "Dia" : "Nome") + '</th><th>Tempo</th><th class="pts">' + esc(g.unitLabel || "Pontos") + '</th></tr></thead><tbody>' +
+        l.map((e, i) => '<tr' + (e.id === highlightId ? ' class="me"' : "") + '><td class="pos">' + (i + 1) + '</td><td>' + esc(isDay ? daily.label((e.extra && e.extra.day) || e.date.slice(0, 10)) : e.name) + '</td><td>' + fmtTime(e.time) + '</td><td class="pts">' + fmtNum(e.score) + '</td></tr>').join("") +
         '</tbody></table>';
     };
-    box.appendChild(filters); box.appendChild(table);
+    const drawStats = () => {
+      const b = stats.get(g.id, key());
+      if (!b || !b.played) { table.innerHTML = '<p class="empty">Ainda não há jogos registados aqui.<br>As estatísticas contam a partir desta versão.</p>'; return; }
+      const unit = " " + (g.unitLabel ? g.unitLabel.toLowerCase() : "pts");
+      const cells = g.statsKind === "score"
+        ? [["Jogos", fmtNum(b.played)], ["Melhor", fmtNum(b.sBest) + unit], ["Média", fmtNum(b.sSum / b.played) + unit], ["Tempo de jogo", fmtTime(b.tAll)]]
+        : [["Jogos", fmtNum(b.played)], ["Vitórias", fmtNum(b.won) + " · " + Math.round(100 * b.won / b.played) + " %"],
+           ["Sequência", fmtNum(b.streak)], ["Melhor sequência", fmtNum(b.best)],
+           ["Tempo médio", b.tN ? fmtTime(b.tSum / b.tN) : "—"], ["Melhor tempo", b.tBest ? fmtTime(b.tBest) : "—"]];
+      table.innerHTML = '<div class="st-grid">' + cells.map(c => '<div class="stat"><small>' + esc(c[0]) + "</small><b>" + esc(c[1]) + "</b></div>").join("") + "</div>" +
+        (g.statsKind === "score" ? "" : '<p class="hint st-note">A sequência são vitórias seguidas; desistir de um jogo começado também a quebra.</p>');
+    };
+    box.append(tabs, filters, table);
     draw();
-    modal.open({ title: gameId ? "Ranking · " + g.name : "Ranking", body: box });
+    modal.open({ title: gameId ? g.name : "Ranking e estatísticas", body: box });
   }
 
   /* ---------- Janela de ajuda ---------- */
@@ -351,5 +518,5 @@
     modal.open({ title: "Definições", body: box, onClose: () => setSetting("name", inp.value.trim().slice(0, 16)), actions: [{ label: "Fechar", primary: true }] });
   }
 
-  window.Sala = { $, el, esc, fmtTime, fmtNum, shuffle, clamp, store, settings, setSetting, motion, sound, vibrate, toast, modal, fx, ranking, registerGame, games, gameById, ui, finish, showRanking, showHelp, showSettings };
+  window.Sala = { $, el, esc, fmtTime, fmtNum, shuffle, clamp, rng, SITE, store, settings, setSetting, motion, sound, vibrate, toast, modal, fx, ranking, daily, stats, share, shareImage, copyText, registerGame, games, gameById, ui, finish, showRanking, showHelp, showSettings };
 })();

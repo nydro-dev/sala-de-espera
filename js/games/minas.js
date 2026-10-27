@@ -1,7 +1,8 @@
 /* Sala de Espera — Minas */
 (function () {
   "use strict";
-  const { el, fmtTime, fmtNum, shuffle, clamp, store, sound, vibrate, motion, fx, toast, modal, ranking, ui, finish } = Sala;
+  const { el, esc, fmtTime, fmtNum, shuffle, clamp, store, sound, vibrate, motion, fx, toast, modal, ranking, ui, finish, daily, stats: ST } = Sala;
+  const DAILY_DIFF = "medium"; /* o desafio do dia é sempre um Médio (16×16, 40 minas) */
 
   const DIFFS = [{ id: "beginner", label: "Iniciante" }, { id: "easy", label: "Fácil" }, { id: "medium", label: "Médio" }, { id: "hard", label: "Difícil" }, { id: "extreme", label: "Extremo" }];
   const CFG = { beginner: { w: 8, h: 8, m: 8 }, easy: { w: 9, h: 9, m: 10 }, medium: { w: 16, h: 16, m: 40 }, hard: { w: 30, h: 16, m: 99 }, extreme: { w: 30, h: 20, m: 130 } };
@@ -11,7 +12,8 @@
   const FLAG = '<svg viewBox="0 0 20 20"><path d="M5.5 2.5v15" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"/><path d="M6.5 3h9.5l-2.6 3.8L16 10.6H6.5z" fill="var(--yellow)" stroke="var(--ink)" stroke-width="1.2" stroke-linejoin="round"/></svg>';
   const MINE = '<svg viewBox="0 0 20 20"><path d="M10 1.5v17M1.5 10h17M4 4l12 12M16 4L4 16" stroke="var(--ink)" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="10" r="5.6" fill="var(--ink)"/><circle cx="8.2" cy="8.2" r="1.5" fill="var(--surface)"/></svg>';
 
-  let M = null, els = null, cur = -1, kbd = false, lp = null, lpFired = false, lastTouch = 0;
+  let M = null, els = null, cur = -1, kbd = false, lp = null, lpFired = false, lastTouch = 0, isDaily = false;
+  const KEY = () => isDaily ? "minas:dia" : "minas";
 
   /* ---------- Estado ---------- */
   function fresh(diff) {
@@ -23,26 +25,73 @@
     return { diff, w, h, m: c.m, mine: null, num: null, open: Array(n).fill(0), flag: Array(n).fill(0), state: "ready", time: 0, boom: -1, flagMode: false };
   }
   function load() {
-    const d = store.get("minas", null);
+    const d = store.get(KEY(), null);
+    if (isDaily) { if (d && d.daily === daily.today() && d.open) { M = d; return true; } return false; }
     if (d && d.state === "play" && d.open && d.open.length === d.w * d.h) { M = d; return true; }
     return false;
   }
-  const save = () => { if (M && M.state === "play") store.set("minas", M); else store.del("minas"); };
+  /* O desafio do dia fica guardado até ao fim do dia (também acabado, para se ver o tabuleiro). */
+  const save = () => { if (isDaily) { if (M) store.set(KEY(), M); return; } if (M && M.state === "play") store.set("minas", M); else store.del("minas"); };
   const lastDiff = () => store.get("minasDiff", "medium");
 
-  function newGame(diff) {
+  function newGame(diff, practice) {
     const keepMode = M ? M.flagMode : false;
-    M = fresh(diff || (M && M.diff) || lastDiff());
+    if (isDaily) {
+      M = dailyBoard(); if (practice) M.practice = true;
+    } else {
+      M = fresh(diff || (M && M.diff) || lastDiff());
+      store.set("minasDiff", M.diff);
+    }
     M.flagMode = keepMode;
-    store.set("minasDiff", M.diff); save(); cur = -1;
-    if (els) { buildGrid(); msg(""); syncDiff(); render(); }
+    save(); cur = -1;
+    if (els) { buildGrid(); msg(isDaily ? dailyMsg() : ""); syncDiff(); render(); toStart(); }
   }
+  /* Com a lupa, o tabuleiro desliza: no desafio, mostra logo a zona já aberta. */
+  function toStart() {
+    if (!els || M.start == null || M.state !== "ready") return;
+    requestAnimationFrame(() => {
+      const sc = els && els.board.querySelector(".mscroll"), c = document.getElementById("m-grid").children[M.start];
+      if (!sc || !c) return;
+      const a = sc.getBoundingClientRect(), b = c.getBoundingClientRect();
+      sc.scrollLeft += b.left - a.left - (a.width - b.width) / 2;
+      sc.scrollTop += b.top - a.top - (a.height - b.height) / 2;
+    });
+  }
+  /* Desafio do dia: minas postas pela semente e uma zona já aberta, igual para toda a gente
+     (sem isto, a primeira casa escolhida mudaria o tabuleiro). Sem rodar, porque é quadrado. */
+  function dailyBoard() {
+    const ds = daily.today(), c = CFG[DAILY_DIFF], n = c.w * c.h, rnd = daily.rng("minas", ds);
+    const B = { diff: DAILY_DIFF, daily: ds, w: c.w, h: c.h, m: c.m, mine: Array(n).fill(0), num: null, open: Array(n).fill(0), flag: Array(n).fill(0), state: "ready", time: 0, boom: -1, flagMode: false };
+    shuffle([...Array(n).keys()], rnd).slice(0, c.m).forEach(i => B.mine[i] = 1);
+    const prev = M; M = B;
+    B.num = B.mine.map((_, i) => nb(i).reduce((s, j) => s + B.mine[j], 0));
+    /* A zona de partida é a maior mancha de zeros (em empate, a primeira). */
+    const seen = new Uint8Array(n); let best = -1, bestSize = 0;
+    for (let i = 0; i < n; i++) {
+      if (seen[i] || B.mine[i] || B.num[i]) continue;
+      let size = 0; const q = [i]; seen[i] = 1;
+      while (q.length) { const x = q.pop(); size++; for (const j of nb(x)) if (!seen[j] && !B.mine[j] && !B.num[j]) { seen[j] = 1; q.push(j); } }
+      if (size > bestSize) { bestSize = size; best = i; }
+    }
+    if (best < 0) best = B.mine.findIndex(v => !v);
+    const q = [best];
+    while (q.length) { const x = q.shift(); if (B.open[x]) continue; B.open[x] = 1; if (!B.num[x]) for (const j of nb(x)) if (!B.open[j]) q.push(j); }
+    B.start = best;
+    M = prev;
+    return B;
+  }
+  const dailyMsg = () => {
+    const r = daily.result("minas");
+    if (M && M.practice && M.state !== "won" && M.state !== "over") return "Repetição: esta não conta.";
+    if (r) return r.won ? "Desafio feito: " + fmtNum(r.score) + " pontos em " + fmtTime(r.time) + "." : "Desafio de hoje: rebentou ao fim de " + fmtTime(r.time) + ". Amanhã há outro.";
+    return M && M.state === "ready" ? "Começa a partir da zona já aberta." : "";
+  };
   function askNew(diff) {
     if (!M || M.state !== "play") return newGame(diff);
     modal.open({
       title: "Começar outro jogo?",
       body: "<p>O tabuleiro atual fica sem efeito e não conta para o ranking.</p>",
-      actions: [{ label: "Continuar este", onClick: () => syncDiff() }, { label: "Novo jogo", primary: true, onClick: () => newGame(diff) }],
+      actions: [{ label: "Continuar este", onClick: () => syncDiff() }, { label: "Novo jogo", primary: true, onClick: () => { ST.record("minas", M.diff, { won: false, time: M.time }); newGame(diff); } }],
       onClose: syncDiff
     });
   }
@@ -56,7 +105,9 @@
   }
 
   /* ---------- Ecrã ---------- */
-  function mount(c) {
+  function mount(c, opts) {
+    const want = !!(opts && opts.daily);
+    if (want !== isDaily) { save(); M = null; isDaily = want; }
     if (!M && !load()) newGame(lastDiff());
     els = c; cur = -1; kbd = false;
     c.stats.innerHTML = ui.stat("Minas", "m-left", "hl") + ui.stat("Tempo", "m-time") + ui.stat("Recorde", "m-best");
@@ -65,7 +116,10 @@
     scroll.appendChild(grid);
     c.board.append(scroll, el("div", { class: "msg", id: "m-msg", role: "status" }));
 
-    const diffSeg = ui.seg(DIFFS, M.diff, id => askNew(id), "Dificuldade"); diffSeg.id = "m-diff"; diffSeg.classList.add("wrap");
+    const diffSeg = isDaily
+      ? el("div", { class: "mode-tag" }, ui.ICON.cal + "Desafio de " + esc(daily.label(M.daily)) + " · Médio")
+      : ui.seg(DIFFS, M.diff, id => askNew(id), "Dificuldade");
+    if (!isDaily) { diffSeg.id = "m-diff"; diffSeg.classList.add("wrap"); }
     const mode = el("div", { class: "minas-mode", role: "group", "aria-label": "Modo do toque" });
     const bOpen = el("button", { class: "btn", type: "button", id: "m-mopen" }, ui.ICON.pick + "Abrir");
     const bFlag = el("button", { class: "btn", type: "button", id: "m-mflag" }, ui.ICON.flag + "Bandeira");
@@ -73,8 +127,11 @@
     bFlag.onclick = () => { M.flagMode = true; sound.tap(); render(); };
     mode.append(bOpen, bFlag);
     const top = el("div", { class: "row" });
-    const bNew = el("button", { class: "btn", type: "button" }, ui.ICON.plus + "Novo jogo");
-    bNew.onclick = () => askNew(M.diff);
+    const bNew = el("button", { class: "btn", type: "button" }, ui.ICON.plus + (isDaily ? "Jogo normal" : "Novo jogo"));
+    bNew.onclick = () => isDaily ? Sala.go("minas") : askNew(M.diff);
+    const bAgain = el("button", { class: "btn", type: "button", id: "m-again", hidden: true }, ui.ICON.undo + "Repetir (não conta)");
+    bAgain.onclick = () => newGame(DAILY_DIFF, true);
+    if (isDaily) top.append(bAgain);
     const bZoom = el("button", { class: "btn", type: "button", id: "m-zoom", hidden: true });
     bZoom.onclick = () => { store.set("minasZoom", !zoomOn()); sound.tap(); sizeGrid(); };
     top.append(bZoom, bNew);
@@ -98,11 +155,13 @@
     ["touchend", "touchmove", "touchcancel"].forEach(t => grid.addEventListener(t, () => clearTimeout(lp), { passive: true }));
 
     buildGrid();
-    if (M.state === "won") msg("Campo limpo.");
+    if (isDaily) msg(dailyMsg());
+    else if (M.state === "won") msg("Campo limpo.");
     render();
+    toStart();
     addEventListener("resize", sizeGrid);
   }
-  function unmount() { save(); removeEventListener("resize", sizeGrid); if (els) els.board.parentNode.classList.remove("wide-board"); els = null; clearTimeout(lp); }
+  function unmount() { save(); removeEventListener("resize", sizeGrid); if (els) els.board.parentNode.classList.remove("wide-board"); els = null; clearTimeout(lp); if (isDaily) { M = null; isDaily = false; } }
   function syncDiff() { const s = document.getElementById("m-diff"); if (s) s.querySelectorAll("button").forEach((b, k) => b.setAttribute("aria-pressed", String(DIFFS[k].id === M.diff))); }
   function msg(t, bad) { const m = document.getElementById("m-msg"); if (m) { m.textContent = t; m.className = "msg" + (bad ? " bad" : ""); } }
 
@@ -157,7 +216,8 @@
     }
     const set = (id, t) => { const n = document.getElementById(id); if (n) n.textContent = t; };
     set("m-left", M.m - f); set("m-time", fmtTime(M.time));
-    const b = ranking.best("minas", M.diff); set("m-best", b ? fmtNum(b.score) : "—");
+    const b = ranking.best("minas", isDaily ? "dia" : M.diff); set("m-best", b ? fmtNum(b.score) : "—");
+    const ag = document.getElementById("m-again"); if (ag) ag.hidden = !(M.state === "won" || M.state === "over");
     const bo = document.getElementById("m-mopen"), bf = document.getElementById("m-mflag");
     bo.classList.toggle("on", !M.flagMode); bo.setAttribute("aria-pressed", String(!M.flagMode));
     bf.classList.toggle("on", !!M.flagMode); bf.setAttribute("aria-pressed", String(!!M.flagMode));
@@ -182,7 +242,7 @@
     if (todo.length) reveal(todo);
   }
   function reveal(list) {
-    if (M.state === "ready") { plant(list[0]); M.state = "play"; }
+    if (M.state === "ready") { if (!M.mine) plant(list[0]); M.state = "play"; }
     const order = new Map(); let step = 0;
     for (const s of list) {
       if (M.flag[s] || M.open[s]) continue;
@@ -199,29 +259,49 @@
     if (!checkWin()) render(motion() ? order : null);
   }
   function lose() {
-    M.state = "over"; store.del("minas");
+    M.state = "over"; save();
     render();
     sound.boom(); vibrate([90, 40, 160]);
     const cell = document.getElementById("m-grid").children[M.boom];
     if (cell) { const r = cell.getBoundingClientRect(); fx.burst(r.left + r.width / 2, r.top + r.height / 2); }
     if (motion() && els) { const sc = els.board.querySelector(".mscroll"); sc.classList.remove("shake"); void sc.offsetWidth; sc.classList.add("shake"); }
     msg("Boom. Ao fim de " + fmtTime(M.time) + ". Nova volta?", true);
+    const dd = M.daily;
+    if (!dd) { ST.record("minas", M.diff, { won: false, time: M.time }); return; }
+    /* No desafio do dia, a derrota também se regista e partilha. */
+    const practice = !!(M.practice || daily.result("minas", dd));
+    const opened = M.open.reduce((a, b) => a + b, 0), total = M.w * M.h - M.m;
+    setTimeout(() => {
+      finish({
+        game: "minas", diff: M.diff, diffLabel: "Médio", title: "Boom", score: 0, time: M.time, won: false, daily: dd, practice,
+        breakdown: [["Casas abertas", fmtNum(opened) + " de " + fmtNum(total)], ["Tempo", fmtTime(M.time)]],
+        share: { lost: "💥 Rebentou", lines: ["💥 Rebentou ao fim de " + fmtTime(M.time), fmtNum(Math.round(100 * opened / total)) + " % do campo limpo"] },
+        newLabel: "Jogo normal", onNew: () => Sala.go("minas")
+      });
+      if (els) msg(dailyMsg(), true);
+    }, motion() ? 1100 : 200);
   }
   function checkWin() {
     const n = M.w * M.h; let open = 0; for (let i = 0; i < n; i++) open += M.open[i];
     if (open !== n - M.m) return false;
-    M.state = "won"; store.del("minas");
+    M.state = "won"; save();
     for (let i = 0; i < n; i++) if (M.mine[i]) M.flag[i] = 1;
     render();
     const t = Math.max(1, M.time), par = PAR[M.diff], base = BASE[M.diff];
     const mult = t <= par ? 1 + (par - t) / par : Math.max(0.25, par / t);
     const total = Math.round(base * mult), dl = DIFFS.find(d => d.id === M.diff).label;
     msg("Campo limpo em " + fmtTime(M.time) + ".");
-    setTimeout(() => finish({
-      game: "minas", diff: M.diff, diffLabel: dl, title: "Campo limpo", score: total, time: M.time,
-      breakdown: [["Base (" + dl + ")", fmtNum(base)], ["Tempo " + fmtTime(M.time) + " (referência " + fmtTime(par) + ")", "× " + mult.toFixed(2).replace(".", ",")]],
-      onNew: () => newGame(M.diff)
-    }), 350);
+    const dd = M.daily, practice = !!(dd && (M.practice || daily.result("minas", dd)));
+    setTimeout(() => {
+      finish({
+        game: "minas", diff: M.diff, diffLabel: dl, title: "Campo limpo", score: total, time: M.time, daily: dd, practice,
+        breakdown: [["Base (" + dl + ")", fmtNum(base)], ["Tempo " + fmtTime(M.time) + " (referência " + fmtTime(par) + ")", "× " + mult.toFixed(2).replace(".", ",")]],
+        share: { lines: ["Campo limpo em " + fmtTime(M.time)] },
+        newLabel: dd ? "Jogo normal" : "Novo jogo",
+        onNew: () => dd ? Sala.go("minas") : newGame(M.diff)
+      });
+      if (dd && els) msg(dailyMsg());
+    }, 350);
     return true;
   }
 
@@ -257,7 +337,8 @@
       "<h4>Pontuação</h4><ul>" +
       "<li>Base: 250 no Iniciante, 500 no Fácil, 2000 no Médio, 5000 no Difícil e 9000 no Extremo.</li>" +
       "<li>Bónus de rapidez: o tempo de referência é 30 segundos, 1, 4, 10 e 18 minutos. Acabar em metade desse tempo vale ×1,5; no dobro, ×0,5 (nunca menos de ×0,25).</li>" +
-      "<li>Só as vitórias contam para o ranking.</li></ul>";
+      "<li>Só as vitórias contam para o ranking.</li></ul>" +
+      "<h4>Desafio do dia</h4><p>Um campo Médio (16×16, 40 minas) igual para toda a gente nesse dia, com uma zona já aberta para começar. O relógio só arranca na primeira jogada. Só a primeira tentativa conta, e rebentar também fica registado.</p>";
   }
 
   Sala.registerGame({
@@ -265,6 +346,8 @@
     desc: "Lógica e números para limpar o campo sem rebentar nada.",
     art: '<svg viewBox="0 0 36 36"><rect x="2" y="2" width="32" height="32" rx="6" fill="var(--cover)"/><rect x="2" y="18" width="16" height="16" rx="0" fill="var(--open)"/><path d="M8 3v13M3 9.5h11M4.5 5l7 7M11.5 5l-7 7" stroke="var(--ink)" stroke-width="1.6" stroke-linecap="round" transform="translate(16 0)"/><circle cx="24" cy="9.5" r="3.6" fill="var(--ink)"/><path d="M7 21.5v9" stroke="var(--ink)" stroke-width="1.6" stroke-linecap="round"/><path d="M7.6 22h6l-1.6 2.2 1.6 2.3h-6z" fill="var(--yellow)" stroke="var(--ink)" stroke-width=".9"/><text x="27" y="31" font-size="11" font-weight="900" text-anchor="middle" fill="var(--blue-ink)" font-family="Roboto,sans-serif">3</text></svg>',
     lastDiff,
+    daily: true, dailyLost: "Rebentou",
+    dailyPlaying() { const d = store.get("minas:dia", null); return !!(d && d.daily === daily.today() && d.state === "play" && !d.practice); },
     meta() {
       const out = [];
       if ((M && M.state === "play") || (!M && load())) out.push({ text: "Jogo a meio · " + fmtTime(M.time), cls: "blue" });

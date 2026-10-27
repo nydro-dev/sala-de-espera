@@ -1,7 +1,8 @@
 /* Sala de Espera — Sudoku */
 (function () {
   "use strict";
-  const { el, esc, fmtTime, fmtNum, shuffle, store, sound, vibrate, motion, toast, modal, ranking, ui, finish } = Sala;
+  const { el, esc, fmtTime, fmtNum, shuffle, store, sound, vibrate, motion, toast, modal, ranking, ui, finish, daily, stats: ST } = Sala;
+  const DAILY_DIFF = "medium"; /* o desafio do dia é sempre um Médio */
 
   const DIFFS = [{ id: "beginner", label: "Iniciante" }, { id: "easy", label: "Fácil" }, { id: "medium", label: "Médio" }, { id: "hard", label: "Difícil" }, { id: "evil", label: "Diabólico" }];
   const BASE = { beginner: 500, easy: 1000, medium: 2000, hard: 3500, evil: 5000 };
@@ -21,7 +22,7 @@
   }
   const unitsOf = i => UNITS.filter(u => u.includes(i));
   const ok = (g, i, v) => { for (const p of PEERS[i]) if (g[p] === v) return false; return true; };
-  function fill(g) { const i = g.indexOf(0); if (i < 0) return true; for (const v of shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9])) { if (ok(g, i, v)) { g[i] = v; if (fill(g)) return true; g[i] = 0; } } return false; }
+  function fill(g, rnd) { const i = g.indexOf(0); if (i < 0) return true; for (const v of shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9], rnd)) { if (ok(g, i, v)) { g[i] = v; if (fill(g, rnd)) return true; g[i] = 0; } } return false; }
   function count(g, lim) {
     let best = -1, bc = 10;
     for (let i = 0; i < 81; i++) if (!g[i]) { let c = 0; for (let v = 1; v <= 9; v++) if (ok(g, i, v)) c++; if (c < bc) { bc = c; best = i; if (c < 2) break; } }
@@ -131,25 +132,26 @@
     return 4;
   }
 
-  function attempt(diff) {
-    const sol = Array(81).fill(0); fill(sol);
+  function attempt(diff, rnd) {
+    const sol = Array(81).fill(0); fill(sol, rnd);
     const g = sol.slice(); let givens = 81;
-    for (const i of shuffle([...Array(81).keys()])) {
+    for (const i of shuffle([...Array(81).keys()], rnd)) {
       if (givens <= GIVENS[diff]) break;
       const v = g[i]; g[i] = 0;
       if (count(g.slice(), 2) !== 1) g[i] = v; else givens--;
     }
     return { puzzle: g, solution: sol, level: rate(g) };
   }
-  /* Gera até encontrar um puzzle que peça as técnicas certas (com limite de tempo, por segurança). */
-  function generate(diff) {
+  /* Gera até encontrar um puzzle que peça as técnicas certas (com limite de tempo, por segurança).
+     Com semente (desafio do dia) não há limite de tempo: o resultado tem de ser igual em qualquer aparelho. */
+  function generate(diff, rnd) {
     const [lo, hi] = LEVEL[diff] || [1, 4], t0 = Date.now();
     let best = null;
     for (let k = 0; k < 400; k++) {
-      const a = attempt(diff);
+      const a = attempt(diff, rnd);
       if (a.level >= lo && a.level <= hi) return a;
       if (!best || Math.abs(a.level - lo) < Math.abs(best.level - lo)) best = a;
-      if (Date.now() - t0 > 2500) break;
+      if (!rnd && Date.now() - t0 > 2500) break;
     }
     return best;
   }
@@ -165,8 +167,14 @@
   }
 
   /* ---------- Estado ---------- */
-  let S = null, els = null, hist = [], anims = {};
+  let S = null, els = null, hist = [], anims = {}, isDaily = false;
+  const KEY = () => isDaily ? "sudoku:dia" : "sudoku";
   function load() {
+    if (isDaily) {
+      const d = store.get(KEY(), null);
+      if (d && d.puzzle && d.daily === daily.today()) { S = d; return true; }
+      return false;
+    }
     let d = store.get("sudoku", null);
     if (!d) { /* dados da versão anterior */
       try { const old = JSON.parse(Sala.store.raw("sudoku") || "null"); if (old && old.puzzle) d = Object.assign({ hints: 0 }, old); } catch (e) {}
@@ -174,29 +182,35 @@
     if (d && d.puzzle && d.solution) { S = Object.assign({ hints: 0, noteMode: false }, d); return true; }
     return false;
   }
-  const save = () => { if (S) store.set("sudoku", S); };
+  const save = () => { if (S) store.set(KEY(), S); };
   const progress = () => S && !S.done && S.vals.some((v, i) => v && !S.puzzle[i]);
 
-  function newGame(diff) {
-    diff = diff || (S && S.diff) || "medium";
-    const { puzzle, solution } = generate(diff);
+  function newGame(diff, practice) {
+    diff = isDaily ? DAILY_DIFF : diff || (S && S.diff) || "medium";
+    const ds = daily.today();
+    const { puzzle, solution } = generate(diff, isDaily ? daily.rng("sudoku", ds) : null);
     S = { diff, puzzle, solution, vals: puzzle.slice(), notes: Array(81).fill(0), sel: puzzle.indexOf(0), errors: 0, hints: 0, time: 0, done: false, noteMode: false };
+    if (isDaily) { S.daily = ds; if (practice) S.practice = true; }
     hist = []; anims = {};
     save();
-    if (els) { msg(""); syncDiff(); render(); animateBoardIn(); }
+    if (els) { msg(isDaily ? dailyMsg() : ""); syncDiff(); render(); animateBoardIn(); }
   }
+  const dailyMsg = () => { const r = daily.result("sudoku"); return r ? (S && S.practice && !S.done ? "Repetição: esta não conta." : "Desafio feito: " + fmtNum(r.score) + " pontos em " + fmtTime(r.time) + ".") : ""; };
   function askNew(diff) {
     if (!progress()) return newGame(diff);
     modal.open({
       title: "Começar outro jogo?",
       body: "<p>O jogo atual vai ficar sem efeito e não conta para o ranking.</p>",
-      actions: [{ label: "Continuar este", onClick: () => syncDiff() }, { label: "Novo jogo", primary: true, onClick: () => newGame(diff) }],
+      actions: [{ label: "Continuar este", onClick: () => syncDiff() }, { label: "Novo jogo", primary: true, onClick: () => { ST.record("sudoku", S.diff, { won: false, time: S.time }); newGame(diff); } }],
       onClose: syncDiff
     });
   }
 
   /* ---------- Ecrã ---------- */
-  function mount(c) {
+  function mount(c, opts) {
+    const want = !!(opts && opts.daily);
+    if (want !== isDaily) { save(); S = null; isDaily = want; }
+    if (isDaily && S && S.daily !== daily.today()) S = null;
     if (!S && !load()) newGame("medium");
     els = c; hist = []; anims = {};
     c.stats.innerHTML = ui.stat("Tempo", "s-time", "hl") + ui.stat("Erros", "s-err") + ui.stat("Pistas", "s-hint") + ui.stat("Recorde", "s-best");
@@ -211,12 +225,22 @@
     const m = el("div", { class: "msg", id: "s-msg", role: "status" });
     c.board.append(grid, m);
 
-    const diffSeg = ui.seg(DIFFS, S.diff, id => askNew(id), "Dificuldade"); diffSeg.classList.add("wrap");
-    diffSeg.id = "s-diff";
+    const diffSeg = isDaily
+      ? el("div", { class: "mode-tag" }, ui.ICON.cal + "Desafio de " + esc(daily.label(S.daily)) + " · Médio")
+      : ui.seg(DIFFS, S.diff, id => askNew(id), "Dificuldade");
+    if (!isDaily) { diffSeg.classList.add("wrap"); diffSeg.id = "s-diff"; }
     const top = el("div", { class: "row" });
-    const bNew = el("button", { class: "btn", type: "button" }, ui.ICON.plus + "Novo jogo");
-    bNew.onclick = () => askNew(S.diff);
-    top.append(bNew);
+    if (isDaily) {
+      const bAgain = el("button", { class: "btn", type: "button", id: "s-again" }, ui.ICON.undo + "Repetir (não conta)");
+      bAgain.onclick = () => newGame(DAILY_DIFF, true);
+      const bNorm = el("button", { class: "btn", type: "button" }, ui.ICON.plus + "Jogo normal");
+      bNorm.onclick = () => Sala.go("sudoku");
+      top.append(bAgain, bNorm);
+    } else {
+      const bNew = el("button", { class: "btn", type: "button" }, ui.ICON.plus + "Novo jogo");
+      bNew.onclick = () => askNew(S.diff);
+      top.append(bNew);
+    }
 
     const pad = el("div", { class: "pad", id: "s-pad" });
     for (let v = 1; v <= 9; v++) {
@@ -234,11 +258,12 @@
     const kb = el("p", { class: "hint for-mouse" }, "Teclado: setas, <kbd>1</kbd>–<kbd>9</kbd>, <kbd>N</kbd> notas, <kbd>⌫</kbd> apagar, <kbd>Ctrl</kbd>+<kbd>Z</kbd> desfazer.");
     c.controls.append(diffSeg, pad, tools, top, kb);
 
-    if (S.done) msg("Resolvido. Começa outro quando quiseres.");
+    if (isDaily) msg(dailyMsg());
+    else if (S.done) msg("Resolvido. Começa outro quando quiseres.");
     render();
     animateBoardIn();
   }
-  function unmount() { save(); els = null; }
+  function unmount() { save(); els = null; if (isDaily) { S = null; isDaily = false; } }
   function syncDiff() {
     const s = document.getElementById("s-diff"); if (!s) return;
     s.querySelectorAll("button").forEach((b, k) => b.setAttribute("aria-pressed", String(DIFFS[k].id === S.diff)));
@@ -287,7 +312,8 @@
     if (!els) return;
     const set = (id, t) => { const n = document.getElementById(id); if (n) n.textContent = t; };
     set("s-time", fmtTime(S.time)); set("s-err", S.errors); set("s-hint", S.hints);
-    const b = ranking.best("sudoku", S.diff); set("s-best", b ? fmtNum(b.score) : "—");
+    const b = ranking.best("sudoku", isDaily ? "dia" : S.diff); set("s-best", b ? fmtNum(b.score) : "—");
+    const ag = document.getElementById("s-again"); if (ag) ag.hidden = !S.done;
   }
 
   /* ---------- Animações ---------- */
@@ -360,12 +386,18 @@
     if (motion() && els) for (let i = 0; i < 81; i++) anim(i, "wave", (rowOf(i) + colOf(i)) * 35);
     const sc = score(S), dl = DIFFS.find(d => d.id === S.diff).label;
     msg("Resolvido em " + fmtTime(S.time) + ".");
-    setTimeout(() => finish({
-      game: "sudoku", diff: S.diff, diffLabel: dl, title: "Sudoku resolvido", score: sc.total, time: S.time,
-      breakdown: [["Base (" + dl + ")", fmtNum(sc.base)], ["Tempo " + fmtTime(S.time), "−" + fmtNum(sc.tPen)], ["Erros × " + S.errors, "−" + fmtNum(sc.ePen)], ["Pistas × " + S.hints, "−" + fmtNum(sc.hPen)]],
-      extra: { errors: S.errors, hints: S.hints },
-      onNew: () => newGame(S.diff)
-    }), motion() ? 900 : 100);
+    const dd = S.daily, practice = !!(dd && (S.practice || daily.result("sudoku", dd)));
+    setTimeout(() => {
+      finish({
+        game: "sudoku", diff: S.diff, diffLabel: dl, title: "Sudoku resolvido", score: sc.total, time: S.time,
+        breakdown: [["Base (" + dl + ")", fmtNum(sc.base)], ["Tempo " + fmtTime(S.time), "−" + fmtNum(sc.tPen)], ["Erros × " + S.errors, "−" + fmtNum(sc.ePen)], ["Pistas × " + S.hints, "−" + fmtNum(sc.hPen)]],
+        extra: { errors: S.errors, hints: S.hints }, daily: dd, practice,
+        share: { lines: ["Tempo " + fmtTime(S.time), S.errors + (S.errors === 1 ? " erro" : " erros") + " · " + S.hints + (S.hints === 1 ? " pista" : " pistas")] },
+        newLabel: dd ? "Jogo normal" : "Novo jogo",
+        onNew: () => dd ? Sala.go("sudoku") : newGame(S.diff)
+      });
+      if (dd && els) msg(dailyMsg());
+    }, motion() ? 900 : 100);
   }
 
   function onKey(e) {
@@ -402,7 +434,8 @@
       "<li>Base: 500 no Iniciante, 1000 no Fácil, 2000 no Médio, 3500 no Difícil e 5000 no Diabólico.</li>" +
       "<li>O tempo vai descontando: a base esgota-se aos 20 minutos no Iniciante, aos 40 no Fácil, Médio e Difícil, e aos 60 no Diabólico.</li>" +
       "<li>Cada erro tira 5 % da base; cada pista, 10 %.</li>" +
-      "<li>Nunca desce abaixo de 10 % da base. O top 10 de cada dificuldade fica no ranking.</li></ul>";
+      "<li>Nunca desce abaixo de 10 % da base. O top 10 de cada dificuldade fica no ranking.</li></ul>" +
+      "<h4>Desafio do dia</h4><p>Um Sudoku Médio igual para toda a gente nesse dia, no topo do menu. Só a primeira tentativa conta; depois podes repeti-lo à vontade e partilhar o resultado.</p>";
   }
 
   Sala.registerGame({
@@ -410,6 +443,8 @@
     desc: "Números de 1 a 9, sem repetir. Cinco dificuldades, sempre com solução única.",
     art: '<svg viewBox="0 0 36 36"><rect x="2" y="2" width="32" height="32" rx="5" fill="var(--surface)" stroke="var(--ink)" stroke-width="2"/><path d="M12.7 2v32M23.3 2v32M2 12.7h32M2 23.3h32" stroke="var(--ink)" stroke-width="1.4"/><rect x="13.4" y="13.4" width="9.2" height="9.2" fill="var(--blue)"/><text x="7.3" y="10.4" font-size="7.5" font-weight="700" text-anchor="middle" fill="var(--ink)" font-family="Roboto,sans-serif">5</text><text x="18" y="21" font-size="7.5" font-weight="700" text-anchor="middle" fill="var(--on-accent)" font-family="Roboto,sans-serif">3</text><text x="28.7" y="31.6" font-size="7.5" font-weight="700" text-anchor="middle" fill="var(--blue-ink)" font-family="Roboto,sans-serif">8</text></svg>',
     lastDiff: () => (S || load() && S) ? S.diff : "medium",
+    daily: true,
+    dailyPlaying() { const d = store.get("sudoku:dia", null); return !!(d && d.daily === daily.today() && !d.done && !d.practice && d.vals.some((v, i) => v && !d.puzzle[i])); },
     meta() {
       const out = [];
       if (S || load()) { if (progress()) out.push({ text: "Jogo a meio · " + fmtTime(S.time), cls: "blue" }); }
