@@ -54,7 +54,7 @@
     if (settings.theme === "light" || settings.theme === "dark") root.dataset.theme = settings.theme;
     else delete root.dataset.theme;
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.content = getComputedStyle(root).getPropertyValue("--bg").trim() || "#F2F2F3";
+    if (meta) meta.content = getComputedStyle(root).getPropertyValue("--bg").trim() || "#F5F7FB";
   }
   darkMQ.addEventListener ? darkMQ.addEventListener("change", applyTheme) : darkMQ.addListener(applyTheme);
   applyTheme();
@@ -186,7 +186,7 @@
   const fx = {
     confetti() {
       if (!motion()) return;
-      const cols = ["#09B5FF", "#FFC301", "#B8B8B8", "#FFFFFF", "#09B5FF", "#FFC301"];
+      const cols = ["#1E4FA3", "#E0A526", "#A9B4C8", "#FFFFFF", "#1E4FA3", "#E0A526"];
       for (let i = 0; i < 160; i++) {
         const left = i % 2 === 0;
         parts.push({ x: left ? -10 : innerWidth + 10, y: innerHeight * (.55 + Math.random() * .3), vx: (left ? 1 : -1) * (4 + Math.random() * 8), vy: -(9 + Math.random() * 9), g: .28, vr: (Math.random() - .5) * .4, rot: Math.random() * 6, s: 7 + Math.random() * 7, c: cols[i % cols.length], life: 130 + Math.random() * 60 });
@@ -195,7 +195,7 @@
     },
     burst(x, y) {
       if (!motion()) return;
-      const cols = ["#FFC301", "#FF7B2E", "#E8352E", "#1A181D", "#B8B8B8"];
+      const cols = ["#E0A526", "#FF7B2E", "#E8352E", "#14213D", "#A9B4C8"];
       for (let i = 0; i < 70; i++) {
         const a = Math.random() * 6.283, v = 2 + Math.random() * 9;
         parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 2, g: .22, vr: (Math.random() - .5) * .5, rot: 0, s: 3 + Math.random() * 6, c: cols[i % cols.length], life: 50 + Math.random() * 40, round: Math.random() < .6 });
@@ -299,6 +299,8 @@
     }
   };
 
+  /* Logótipo azulejo (viewBox 100×100), para desenhar em canvas com Path2D. */
+  const LOGO = [["#1E4FA3","M22.0 0H78.0A22.0 22.0 0 0 1 100 22.0V78.0A22.0 22.0 0 0 1 78.0 100H22.0A22.0 22.0 0 0 1 0 78.0V22.0A22.0 22.0 0 0 1 22.0 0Z"],["#F5F7FB","M29.0 14H71.0A15.0 15.0 0 0 0 86 29.0V71.0A15.0 15.0 0 0 0 71.0 86H29.0A15.0 15.0 0 0 0 14 71.0V29.0A15.0 15.0 0 0 0 29.0 14Z"],["#1E4FA3","M41.5 38.5A8.5 8.5 0 1 0 58.5 38.5A8.5 8.5 0 1 0 41.5 38.5Z"],["#1E4FA3","M53.0 50.0A8.5 8.5 0 1 0 70.0 50.0A8.5 8.5 0 1 0 53.0 50.0Z"],["#1E4FA3","M41.5 61.5A8.5 8.5 0 1 0 58.5 61.5A8.5 8.5 0 1 0 41.5 61.5Z"],["#1E4FA3","M30.0 50.0A8.5 8.5 0 1 0 47.0 50.0A8.5 8.5 0 1 0 30.0 50.0Z"],["#E0A526","M43.5 50.0A6.5 6.5 0 1 0 56.5 50.0A6.5 6.5 0 1 0 43.5 50.0Z"],["#1E4FA3","M33.0 28.8l4.2 4.2 -4.2 4.2 -4.2 -4.2z"],["#1E4FA3","M67.0 28.8l4.2 4.2 -4.2 4.2 -4.2 -4.2z"],["#1E4FA3","M33.0 62.8l4.2 4.2 -4.2 4.2 -4.2 -4.2z"],["#1E4FA3","M67.0 62.8l4.2 4.2 -4.2 4.2 -4.2 -4.2z"]];
   /* ---------- Partilhar: texto e imagem nas cores da casa ---------- */
   /* d: { title, sub, big, unit, lines: [texto], grid: [[0 | 1 | 2]], text } */
   async function shareImage(d) {
@@ -307,43 +309,40 @@
     const x = c.getContext("2d"), F = (w, s) => w + " " + s + 'px Roboto, "Segoe UI", system-ui, sans-serif';
     const rr = (px, py, w, h, r) => { x.beginPath(); x.moveTo(px + r, py); x.arcTo(px + w, py, px + w, py + h, r); x.arcTo(px + w, py + h, px, py + h, r); x.arcTo(px, py + h, px, py, r); x.arcTo(px, py, px + w, py, r); x.closePath(); };
     const fit = (txt, w, size, max) => { x.font = F(w, size); while (size > 24 && x.measureText(txt).width > max) { size -= 4; x.font = F(w, size); } return size; };
-    x.fillStyle = "#1A181D"; x.fillRect(0, 0, W, H);
-    x.fillStyle = "#09B5FF"; x.fillRect(0, 0, W, 14);
-    /* Marca: grelha de 3×3 com a casa do meio azul e uma bola amarela */
-    const M = 80, sq = 26, gp = 7;
-    x.fillStyle = "#2C2931"; rr(M, 64, sq * 3 + gp * 2 + 28, sq * 3 + gp * 2 + 28, 20); x.fill();
-    for (let k = 0; k < 9; k++) {
-      const px = M + 14 + (k % 3) * (sq + gp), py = 78 + ((k / 3) | 0) * (sq + gp);
-      x.fillStyle = k === 4 ? "#09B5FF" : "#4A4552"; rr(px, py, sq, sq, 6); x.fill();
-      if (k === 8) { x.fillStyle = "#FFC301"; x.beginPath(); x.arc(px + sq / 2, py + sq / 2, 9, 0, 6.29); x.fill(); }
-    }
-    x.textBaseline = "alphabetic"; x.fillStyle = "#F1F1F2"; x.font = F(900, 44); x.fillText("Sala de Espera", 222, 118);
-    x.fillStyle = "#B8B8B8"; x.font = F(400, 28); x.fillText("Jogos curtos para os intervalos", 222, 160);
+    x.fillStyle = "#14213D"; x.fillRect(0, 0, W, H);
+    x.fillStyle = "#E0A526"; x.fillRect(0, 0, W, 14);
+    /* Marca: logótipo azulejo */
+    const M = 80;
+    x.save(); x.translate(M, 64); x.scale(1.24, 1.24);
+    try { LOGO.forEach(([f, d]) => { x.fillStyle = f; x.fill(new Path2D(d)); }); } catch (e) {}
+    x.restore();
+    x.textBaseline = "alphabetic"; x.fillStyle = "#EEF2F8"; x.font = F(900, 44); x.fillText("Sala de Espera", 222, 118);
+    x.fillStyle = "#A9B4C8"; x.font = F(400, 28); x.fillText("Jogos curtos para os intervalos", 222, 160);
     /* Jogo e etiqueta */
     let y = 320;
-    x.fillStyle = "#F1F1F2"; fit(d.title, 900, 92, W - 2 * M); x.fillText(d.title, M, y);
+    x.fillStyle = "#EEF2F8"; fit(d.title, 900, 92, W - 2 * M); x.fillText(d.title, M, y);
     if (d.sub) {
       x.font = F(700, 34); const tw = x.measureText(d.sub).width;
-      x.fillStyle = "#FFC301"; rr(M, y + 32, tw + 44, 60, 30); x.fill();
-      x.fillStyle = "#1A181D"; x.fillText(d.sub, M + 22, y + 74);
+      x.fillStyle = "#E0A526"; rr(M, y + 32, tw + 44, 60, 30); x.fill();
+      x.fillStyle = "#14213D"; x.fillText(d.sub, M + 22, y + 74);
     }
     y += d.grid ? 230 : 330;
     /* Pontuação grande */
     const bs = d.grid ? 150 : 210;
-    x.fillStyle = "#FFC301"; const bsz = fit(d.big, 900, bs, (d.grid ? 520 : W - 2 * M) - 160); x.fillText(d.big, M, y);
-    if (d.unit) { const bw = x.measureText(d.big).width; x.fillStyle = "#B8B8B8"; x.font = F(700, Math.round(bsz * .27)); x.fillText(d.unit, M + bw + 18, y); }
+    x.fillStyle = "#E0A526"; const bsz = fit(d.big, 900, bs, (d.grid ? 520 : W - 2 * M) - 160); x.fillText(d.big, M, y);
+    if (d.unit) { const bw = x.measureText(d.big).width; x.fillStyle = "#A9B4C8"; x.font = F(700, Math.round(bsz * .27)); x.fillText(d.unit, M + bw + 18, y); }
     y += 72;
-    x.fillStyle = "#F1F1F2";
+    x.fillStyle = "#EEF2F8";
     const lw = d.grid ? 500 : W - 2 * M;
     (d.lines || []).slice(0, 4).forEach(l => { fit(l, 500, 40, lw); x.fillText(l, M, y); y += 56; });
     if (d.grid) {
       const n = d.grid[0] ? d.grid[0].length : 5, g2 = 10, cs = Math.min(62, Math.floor((350 - (n - 1) * g2) / n)) /* 7 letras cabem na mesma largura */, gx = W - M - n * cs - (n - 1) * g2;
       let gy = 430;
-      const col = ["#4A4552", "#FFC301", "#09B5FF"];
+      const col = ["#3A4766", "#E0A526", "#3D6FD1"];
       d.grid.forEach(row => { row.forEach((v, k) => { x.fillStyle = col[v] || col[0]; rr(gx + k * (cs + g2), gy, cs, cs, 10); x.fill(); }); gy += cs + g2; });
     }
-    x.fillStyle = "#3A3640"; x.fillRect(M, H - 110, W - 2 * M, 2);
-    x.fillStyle = "#4DCBFF"; x.font = F(500, 32); x.fillText(SITE.replace(/^https:\/\//, "").replace(/\/$/, ""), M, H - 58);
+    x.fillStyle = "#2A3654"; x.fillRect(M, H - 110, W - 2 * M, 2);
+    x.fillStyle = "#8DB3F2"; x.font = F(500, 32); x.fillText(SITE.replace(/^https:\/\//, "").replace(/\/$/, ""), M, H - 58);
     return new Promise(res => { try { c.toBlob(b => res(b), "image/png"); } catch (e) { res(null); } });
   }
   async function copyText(t, done) {

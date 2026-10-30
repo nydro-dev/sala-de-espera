@@ -88,20 +88,20 @@
     const x = cv.getContext("2d"); x.setTransform(r, 0, 0, r, 0, 0);
     const c = size / 2, R = c - 2;
     x.clearRect(0, 0, size, size);
-    x.beginPath(); x.arc(c, c, R, 0, 7); x.fillStyle = "#FFC301"; x.fill();
+    x.beginPath(); x.arc(c, c, R, 0, 7); x.fillStyle = "#E0A526"; x.fill();
     ORDER.forEach((n, k) => {
       const a0 = -Math.PI / 2 + k * SEG - SEG / 2;
       x.beginPath(); x.moveTo(c, c); x.arc(c, c, R - 6, a0, a0 + SEG); x.closePath();
-      x.fillStyle = { red: "#C0262D", black: "#1A181D", green: "#0B6E4F" }[colorOf(n)]; x.fill();
+      x.fillStyle = { red: "#C0262D", black: "#14213D", green: "#0B6E4F" }[colorOf(n)]; x.fill();
       x.strokeStyle = "rgba(255,255,255,.35)"; x.lineWidth = 1; x.stroke();
       x.save(); x.translate(c, c); x.rotate(a0 + SEG / 2 + Math.PI / 2);
       x.fillStyle = "#fff"; x.font = "700 " + Math.round(size * .042) + "px Roboto, system-ui, sans-serif"; x.textAlign = "center";
       x.fillText(String(n), 0, -(R - 6) + size * .06); x.restore();
     });
     x.beginPath(); x.arc(c, c, R * .62, 0, 7); x.fillStyle = "#0B6E4F"; x.fill();
-    x.beginPath(); x.arc(c, c, R * .55, 0, 7); x.fillStyle = "#09B5FF"; x.fill();
-    x.beginPath(); x.arc(c, c, R * .16, 0, 7); x.fillStyle = "#FFC301"; x.fill();
-    for (let i = 0; i < 8; i++) { x.save(); x.translate(c, c); x.rotate(i * Math.PI / 4); x.fillStyle = "#1A181D"; x.fillRect(-2, -R * .5, 4, R * .34); x.restore(); }
+    x.beginPath(); x.arc(c, c, R * .55, 0, 7); x.fillStyle = "#1E4FA3"; x.fill();
+    x.beginPath(); x.arc(c, c, R * .16, 0, 7); x.fillStyle = "#E0A526"; x.fill();
+    for (let i = 0; i < 8; i++) { x.save(); x.translate(c, c); x.rotate(i * Math.PI / 4); x.fillStyle = "#14213D"; x.fillRect(-2, -R * .5, 4, R * .34); x.restore(); }
   }
   function setAngle(a) { const cv = document.getElementById("rl-cv"); if (cv) cv.style.transform = "rotate(" + a + "rad)"; }
   /* Bola: ângulo no ecrã (−π/2 é o topo) e raio em fração do raio da roda. */

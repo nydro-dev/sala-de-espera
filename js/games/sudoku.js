@@ -527,7 +527,7 @@
   Sala.registerGame({
     id: "sudoku", name: "Sudoku", ready: true, diffs: DIFFS,
     desc: "Números de 1 a 9, sem repetir. Cinco dificuldades, sempre com solução única.",
-    art: '<svg viewBox="0 0 36 36"><rect x="2" y="2" width="32" height="32" rx="5" fill="var(--surface)" stroke="var(--ink)" stroke-width="2"/><path d="M12.7 2v32M23.3 2v32M2 12.7h32M2 23.3h32" stroke="var(--ink)" stroke-width="1.4"/><rect x="13.4" y="13.4" width="9.2" height="9.2" fill="var(--blue)"/><text x="7.3" y="10.4" font-size="7.5" font-weight="700" text-anchor="middle" fill="var(--ink)" font-family="Roboto,sans-serif">5</text><text x="18" y="21" font-size="7.5" font-weight="700" text-anchor="middle" fill="var(--on-accent)" font-family="Roboto,sans-serif">3</text><text x="28.7" y="31.6" font-size="7.5" font-weight="700" text-anchor="middle" fill="var(--blue-ink)" font-family="Roboto,sans-serif">8</text></svg>',
+    art: '<svg viewBox="0 0 36 36"><rect x="2" y="2" width="32" height="32" rx="5" fill="var(--surface)" stroke="var(--ink)" stroke-width="2"/><path d="M12.7 2v32M23.3 2v32M2 12.7h32M2 23.3h32" stroke="var(--ink)" stroke-width="1.4"/><rect x="13.4" y="13.4" width="9.2" height="9.2" fill="var(--blue)"/><text x="7.3" y="10.4" font-size="7.5" font-weight="700" text-anchor="middle" fill="var(--ink)" font-family="Roboto,sans-serif">5</text><text x="18" y="21" font-size="7.5" font-weight="700" text-anchor="middle" fill="var(--on-blue)" font-family="Roboto,sans-serif">3</text><text x="28.7" y="31.6" font-size="7.5" font-weight="700" text-anchor="middle" fill="var(--blue-ink)" font-family="Roboto,sans-serif">8</text></svg>',
     lastDiff: () => (S || load() && S) ? S.diff : "medium",
     daily: true,
     duel: true, duelTime: true,

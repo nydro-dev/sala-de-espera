@@ -336,7 +336,7 @@
   Sala.registerGame({
     id: "palavras", name: "Palavras", ready: true, diffs: DIFFS,
     desc: "Descobrir palavras de 4 a 7 letras em seis tentativas.",
-    art: '<svg viewBox="0 0 36 36"><rect x="2" y="11" width="9.5" height="14" rx="2" fill="var(--blue)"/><rect x="13.25" y="11" width="9.5" height="14" rx="2" fill="var(--yellow)"/><rect x="24.5" y="11" width="9.5" height="14" rx="2" fill="var(--cover)"/><text x="6.75" y="21.5" font-size="8" font-weight="900" text-anchor="middle" fill="var(--on-accent)" font-family="Roboto,sans-serif">P</text><text x="18" y="21.5" font-size="8" font-weight="900" text-anchor="middle" fill="var(--on-accent)" font-family="Roboto,sans-serif">T</text></svg>',
+    art: '<svg viewBox="0 0 36 36"><rect x="2" y="11" width="9.5" height="14" rx="2" fill="var(--blue)"/><rect x="13.25" y="11" width="9.5" height="14" rx="2" fill="var(--yellow)"/><rect x="24.5" y="11" width="9.5" height="14" rx="2" fill="var(--cover)"/><text x="6.75" y="21.5" font-size="8" font-weight="900" text-anchor="middle" fill="var(--on-blue)" font-family="Roboto,sans-serif">P</text><text x="18" y="21.5" font-size="8" font-weight="900" text-anchor="middle" fill="var(--on-accent)" font-family="Roboto,sans-serif">T</text></svg>',
     lastDiff: () => (P && P.mode !== "duelo" && P.mode) || "livre",
     duel: true, duelTime: true,
     /* Código curto: número da palavra na lista de soluções, tentativas (7 = falhou) e tempo.

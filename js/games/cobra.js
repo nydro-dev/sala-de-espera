@@ -224,7 +224,7 @@
     const eyes = dr ? [[ex - off, ey], [ex + off, ey]] : [[ex, ey - off], [ex, ey + off]];
     eyes.forEach(([x, y]) => {
       cx.fillStyle = "#fff"; cx.beginPath(); cx.arc(x, y, cs * .12, 0, 6.29); cx.fill();
-      cx.fillStyle = "#1A181D"; cx.beginPath(); cx.arc(x + dc * cs * .04, y + dr * cs * .04, cs * .06, 0, 6.29); cx.fill();
+      cx.fillStyle = "#14213D"; cx.beginPath(); cx.arc(x + dc * cs * .04, y + dr * cs * .04, cs * .06, 0, 6.29); cx.fill();
     });
     /* Moldura: contínua com paredes, tracejada sem elas */
     cx.strokeStyle = S.mode === "livre" ? col.line : col.wall; cx.lineWidth = S.mode === "livre" ? 2 : 4;
@@ -238,13 +238,13 @@
       /* Em pausa, vai para a metade oposta à cabeça, para se ver onde a cobra está. */
       const low = S.state === "pause" && S.snake[0][0] < N / 2;
       const pw = size * .78, ph = size * .24, px = (size - pw) / 2, py = low ? size * .68 : size * .08, pr = size * .04;
-      cx.fillStyle = "#1A181D"; cx.strokeStyle = "#FFC301"; cx.lineWidth = Math.max(2, size * .006);
+      cx.fillStyle = "#14213D"; cx.strokeStyle = "#E0A526"; cx.lineWidth = Math.max(2, size * .006);
       cx.beginPath(); if (cx.roundRect) cx.roundRect(px, py, pw, ph, pr); else cx.rect(px, py, pw, ph); cx.fill(); cx.stroke();
       cx.fillStyle = "#fff"; cx.textAlign = "center"; cx.textBaseline = "middle";
       cx.font = "900 " + Math.round(size * .075) + "px Roboto,system-ui,sans-serif";
       cx.fillText(S.state === "pause" ? "Pausa" : "Pronta?", size / 2, py + ph * .38);
       cx.font = "500 " + Math.round(size * .042) + "px Roboto,system-ui,sans-serif";
-      cx.fillStyle = "#D0D0D0";
+      cx.fillStyle = "#D2DAE6";
       cx.fillText(S.state === "pause" ? sub.replace("começar", "continuar") : sub, size / 2, py + ph * .74);
     }
   }
