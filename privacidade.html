@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#F5F7FB">
+<title>Privacidade · Sala de Espera</title>
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="stylesheet" href="css/base.css">
+<style>
+  .pv{max-width:720px;margin:0 auto;padding:8px 0 40px}
+  .pv h1{font-size:1.7rem;font-weight:900;margin:18px 0 6px}
+  .pv h2{font-size:1.1rem;font-weight:700;margin:26px 0 8px}
+  .pv p,.pv li{color:var(--ink);line-height:1.55}
+  .pv .meta{color:var(--muted);margin:0 0 18px}
+  .pv ul{padding-left:20px}
+  .pv a{color:var(--blue-ink)}
+  .pv-back{display:inline-flex;align-items:center;gap:8px;text-decoration:none}
+</style>
+</head>
+<body>
+<div id="app">
+<main class="pv">
+  <a class="btn pv-back" href="./">← Voltar aos jogos</a>
+  <h1>Privacidade</h1>
+  <p class="meta">Atualizada a 30 de outubro de 2026.</p>
+
+  <p>A Sala de Espera é um projeto pessoal de jogos curtos. Foi feita para se jogar sem conta, sem publicidade e sem recolher dados sobre quem joga. Esta página explica, sem letra miudinha, o que fica no teu aparelho e o pouco que chega ao servidor.</p>
+
+  <h2>O que fica no teu aparelho</h2>
+  <p>Jogos a meio, definições, nome no ranking, recordes, estatísticas, desafios do dia e rivais ficam guardados no armazenamento local do teu browser (ou da app instalada). Não saem de lá, exceto quando tu decides:</p>
+  <ul>
+    <li><b>Partilhar um resultado ou um duelo:</b> vai o que escolheres partilhar, pela folha de partilha do aparelho. Num duelo, o link e o código levam o nome que escreveste, a pontuação, o tempo e o tabuleiro.</li>
+    <li><b>Exportar o progresso:</b> o código ou o ficheiro levam tudo o que a app guardou. Trata-o como coisa tua e não o publiques.</li>
+    <li><b>Mudança de endereço:</b> o botão "Levar o meu progresso" do endereço antigo passa os dados para o novo dentro do próprio link, depois do <code>#</code>, uma parte que o browser nunca envia ao servidor.</li>
+  </ul>
+  <p>Para apagar tudo, basta limpar os dados deste site nas definições do browser (ou apagar a app instalada).</p>
+
+  <h2>O que chega ao servidor</h2>
+  <ul>
+    <li><b>Os ficheiros da app.</b> Como em qualquer site, o browser pede as páginas, os scripts e o tipo de letra ao alojamento, a Cloudflare, que trata esses pedidos (incluindo o endereço IP, necessário para a ligação) por conta deste projeto e segundo as suas próprias regras de segurança e registo técnico. A app não lê nem guarda esses dados.</li>
+    <li><b>Uma contagem de visitas, no máximo uma vez por dia e por aparelho.</b> O pedido diz apenas há quanto tempo este aparelho abriu a app pela primeira vez (em escalões: hoje, 1 a 6 dias, 7 a 29 ou 30 ou mais) e se entrou por um link de duelo. O servidor soma 1 ao total desse dia e deita fora o resto: não guarda IP, aparelho, browser, nome nem identificador de espécie alguma. Serve só para saber quantas pessoas jogam e quantas voltam.</li>
+  </ul>
+
+  <h2>O que não há</h2>
+  <ul>
+    <li>Cookies, publicidade ou serviços de estatística de terceiros.</li>
+    <li>Pedidos a outros sites: o tipo de letra e tudo o resto vêm do próprio endereço da app.</li>
+    <li>Contas, emails ou dados vendidos ou cedidos a quem quer que seja.</li>
+  </ul>
+
+  <h2>Funções online (futuro)</h2>
+  <p>Está prevista uma parte online opcional (ranking, amigos e grupos). Quando chegar, esta página será revista antes, e nada disso funciona sem o ligares tu. Os jogos continuarão a funcionar sem rede e sem conta.</p>
+
+  <h2>Contacto</h2>
+  <p>Dúvidas ou pedidos sobre privacidade: abre um pedido ("issue") no repositório público do projeto, <a href="https://github.com/nydro-dev/sala-de-espera">github.com/nydro-dev/sala-de-espera</a>.</p>
+</main>
+</div>
+<script>
+(function(){try{var s=JSON.parse(localStorage.getItem("sde:settings")||"{}");if(s.theme==="light"||s.theme==="dark")document.documentElement.dataset.theme=s.theme;}catch(e){}})();
+</script>
+</body>
+</html>

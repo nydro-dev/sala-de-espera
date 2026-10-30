@@ -177,6 +177,20 @@
   document.addEventListener("visibilitychange", () => { if (document.hidden && active && active.save) active.save(); });
   addEventListener("pagehide", () => { if (active && active.save) active.save(); });
 
+  /* Contagem de visitas (Fase 7): no máximo um pedido por dia e por aparelho, ao próprio site, sem cookies
+     nem identificadores. Só diz há quantos dias este aparelho abriu a app pela primeira vez (em escalões)
+     e se entrou por um link de duelo. Só no endereço novo. */
+  (function contarVisita() {
+    if (location.hostname !== "sala-de-espera.pages.dev" || !window.fetch) return;
+    const p = n => String(n).padStart(2, "0"), d = new Date(), hoje = d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+    const v = store.get("visita", {}); if (v.last === hoje) return;
+    const first = v.first || hoje, dias = Math.round((new Date(hoje) - new Date(first)) / 864e5);
+    const r = !v.first ? "novo" : dias < 7 ? "1-6" : dias < 30 ? "7-29" : "30+";
+    const o = /^#\/(?:d|duelo)\//.test(location.hash) ? "duelo" : "direto";
+    fetch("/api/visita", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ r, o }), keepalive: true, credentials: "omit" })
+      .then(res => { if (res.ok) store.set("visita", { first, last: hoje }); }).catch(() => {});
+  })();
+
   route();
   if (Sala.backup) Sala.backup.afterLoad();
 

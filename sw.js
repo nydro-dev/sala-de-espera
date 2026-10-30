@@ -1,7 +1,7 @@
 // Guarda a app para funcionar offline. Sobe a versão a cada publicação (sala-v18 → sala-v19).
 const VERSION = "sala-v18";
 const CORE = [
-  "./", "index.html", "manifest.webmanifest",
+  "./", "index.html", "privacidade.html", "manifest.webmanifest",
   "css/base.css", "js/core.js", "js/backup.js", "js/mudanca.js", "js/menu-art.js", "js/app.js", "js/games/sudoku.js", "js/games/minas.js",
   "js/games/dobra.js", "js/games/palavras.js", "js/data/validas.js", "js/data/solucoes.js",
   "js/data/validas-4.js", "js/data/solucoes-4.js", "js/data/validas-6.js", "js/data/solucoes-6.js", "js/data/validas-7.js", "js/data/solucoes-7.js",
@@ -37,6 +37,8 @@ self.addEventListener("fetch", e => {
   const req = e.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
+  // O servidor (/api) nunca passa pela cache.
+  if (url.pathname.startsWith("/api/")) return;
 
   // Página: rede primeiro (para receber atualizações), cópia guardada se estiver offline.
   if (req.mode === "navigate") {

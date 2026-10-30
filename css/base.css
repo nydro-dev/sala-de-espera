@@ -625,3 +625,5 @@ html.cb-lock,html.cb-lock body{overscroll-behavior:none;touch-action:none;overfl
 .mv-ios ol{margin:10px 0 12px;padding-left:20px;color:var(--muted)}
 .mv-ios li{margin:4px 0}
 .mv-stay{margin-top:8px;color:var(--muted)}
+
+.menu-foot a{color:var(--blue-ink);font-weight:500;margin-left:4px}

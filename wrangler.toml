@@ -1,0 +1,10 @@
+# Cloudflare Pages: app estática em .publicar/ (ver scripts/publicar.sh) e funções em functions/.
+name = "sala-de-espera"
+pages_build_output_dir = ".publicar"
+compatibility_date = "2026-10-01"
+
+# Contador de visitas (só totais por dia; esquema em server/visitas.sql).
+[[d1_databases]]
+binding = "DB"
+database_name = "sala-de-espera"
+database_id = "POR-PREENCHER"
