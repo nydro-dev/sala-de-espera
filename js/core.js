@@ -889,6 +889,8 @@
     const inp = el("input", { id: "set-name", class: "input", maxlength: "16", autocomplete: "nickname", placeholder: "Por exemplo: Rui", value: settings.name });
     inp.addEventListener("change", () => setSetting("name", inp.value.trim().slice(0, 16)));
     fName.appendChild(inp); box.appendChild(fName);
+    /* Levar o progresso (js/backup.js) */
+    if (Sala.backup) box.appendChild(Sala.backup.settingsField());
     /* Versão e atualizações (preenchido pelo app.js) */
     const U = Sala.updates;
     if (U && U.supported) {

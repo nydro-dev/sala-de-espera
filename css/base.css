@@ -600,3 +600,13 @@ html.cb-lock,html.cb-lock body{overscroll-behavior:none;touch-action:none;overfl
 .sd-wait i{width:28px;height:28px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--blue);animation:sd-spin .8s linear infinite}
 @keyframes sd-spin{to{transform:rotate(360deg)}}
 .duel-in-box .hint{text-align:left;margin:0}
+
+/* ---------- Levar o progresso (exportar e importar) ---------- */
+.bk p{margin:0 0 10px}
+.bk-code{width:100%;min-height:96px;resize:vertical;font:500 16px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;word-break:break-all;padding:10px 12px}
+.bk-row{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.bk-file{position:relative}
+.bk-note{color:var(--muted);font-size:.88rem}
+.bk-sum{color:var(--good);font-weight:500;font-size:.92rem}
+.bk-sum:empty,.bk-err:empty{display:none}
+.bk-err{color:var(--bad);font-weight:500;font-size:.92rem}

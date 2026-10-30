@@ -105,6 +105,13 @@
   function route() {
     /* O jogo que se chamava 2048 passou a chamar-se Dobra: os links antigos continuam a funcionar. */
     if (/^#\/g2048(\/|$)/.test(location.hash)) { history.replaceState(null, "", "#/dobra"); }
+    /* Progresso trazido de outro endereço ou aparelho: #/importar/<código> (o # nunca vai ao servidor). */
+    const imp = location.hash.match(/^#\/importar\/(.+)$/);
+    if (imp && Sala.backup) {
+      history.replaceState(null, "", location.pathname + location.search);
+      Sala.backup.showImport(decodeURIComponent(imp[1]), "Trouxeste o progresso do endereço antigo da Sala de Espera. Confirma e importa.");
+      $("v-game").hidden = true; $("v-menu").hidden = false; drawMenu(); return;
+    }
     /* Duelo: #/d/<código curto> (Fase 6.1) ou #/duelo/<jogo>/<código> (links da Fase 6) */
     const isDuel = /^#\/(?:d|duelo)\//.test(location.hash);
     let duelData = null;
@@ -169,6 +176,7 @@
   addEventListener("pagehide", () => { if (active && active.save) active.save(); });
 
   route();
+  if (Sala.backup) Sala.backup.afterLoad();
 
   /* ---------- Atualizações ----------
      O service worker novo instala-se sozinho; quando assume o controlo, aparece uma barra
