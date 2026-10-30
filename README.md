@@ -29,13 +29,13 @@ A mensagem do duelo leva o link e um **código curto** (por exemplo, `SUD-3HYF-V
 Tudo vai no próprio link ou código (no link, depois do `#`), por isso não há servidor nem contas. Em contrapartida, quem perceber o formato consegue falsificar um resultado: é um jogo entre amigos, não uma competição.
 
 ## Endereço
-A app está em **https://sala-de-espera.pages.dev/**. O endereço antigo, no GitHub Pages, continua no ar só para encaminhar: mostra "Mudámo-nos", leva o progresso de quem lá jogava (dentro do próprio link, depois do `#`) e reencaminha os links de duelo antigos.
+A app está em **https://saladeespera.pages.dev/**. O endereço antigo, no GitHub Pages, continua no ar só para encaminhar: mostra "Mudámo-nos", leva o progresso de quem lá jogava (dentro do próprio link, depois do `#`) e reencaminha os links de duelo antigos.
 
 ## Levar o progresso
 Nas definições, **Exportar** dá um código (ou um ficheiro) com tudo o que a app guardou: recordes, estatísticas, rivais, desafios do dia e jogos a meio. Noutro aparelho, ou na app instalada, **Importar** e colar o código. Importar substitui o que esse aparelho tinha, mas fica uma cópia para **Desfazer importação**. O código leva uma verificação: cortado ou alterado, é recusado. Não há nuvem: o código passa de mão em mão.
 
 ## Instalar no iPhone
-1. Abrir https://sala-de-espera.pages.dev/ no Safari.
+1. Abrir https://saladeespera.pages.dev/ no Safari.
 2. Tocar em Partilhar → Adicionar ao ecrã principal.
 3. Abrir pelo ícone: a app corre em ecrã inteiro e funciona offline.
 

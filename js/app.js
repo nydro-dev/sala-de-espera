@@ -181,7 +181,7 @@
      nem identificadores. Só diz há quantos dias este aparelho abriu a app pela primeira vez (em escalões)
      e se entrou por um link de duelo. Só no endereço novo. */
   (function contarVisita() {
-    if (location.hostname !== "sala-de-espera.pages.dev" || !window.fetch) return;
+    if (location.hostname !== "saladeespera.pages.dev" || !window.fetch) return;
     const p = n => String(n).padStart(2, "0"), d = new Date(), hoje = d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
     const v = store.get("visita", {}); if (v.last === hoje) return;
     const first = v.first || hoje, dias = Math.round((new Date(hoje) - new Date(first)) / 864e5);

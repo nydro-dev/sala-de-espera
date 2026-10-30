@@ -1,5 +1,5 @@
 # Cloudflare Pages: app estática em .publicar/ (ver scripts/publicar.sh) e funções em functions/.
-name = "sala-de-espera"
+name = "saladeespera"
 pages_build_output_dir = ".publicar"
 compatibility_date = "2026-10-01"
 
@@ -7,4 +7,4 @@ compatibility_date = "2026-10-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "sala-de-espera"
-database_id = "POR-PREENCHER"
+database_id = "672e2377-3037-47d4-af60-8bc1bf31aa42"
