@@ -103,6 +103,8 @@
   function go(id) { fromMenu = !!id && !active; location.hash = id ? "#/" + id : ""; }
   Sala.go = go;
   function route() {
+    /* Endereço antigo: "Mudámo-nos" em vez da app (js/mudanca.js). */
+    if (Sala.moving && Sala.moving.active()) { Sala.moving.show(); return; }
     /* O jogo que se chamava 2048 passou a chamar-se Dobra: os links antigos continuam a funcionar. */
     if (/^#\/g2048(\/|$)/.test(location.hash)) { history.replaceState(null, "", "#/dobra"); }
     /* Progresso trazido de outro endereço ou aparelho: #/importar/<código> (o # nunca vai ao servidor). */

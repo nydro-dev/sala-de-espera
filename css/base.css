@@ -610,3 +610,18 @@ html.cb-lock,html.cb-lock body{overscroll-behavior:none;touch-action:none;overfl
 .bk-sum{color:var(--good);font-weight:500;font-size:.92rem}
 .bk-sum:empty,.bk-err:empty{display:none}
 .bk-err{color:var(--bad);font-weight:500;font-size:.92rem}
+
+/* ---------- Mudámo-nos (endereço antigo) ---------- */
+.mv{min-height:calc(100dvh - 60px);display:grid;place-items:center}
+.mv-card{max-width:440px;width:100%;text-align:center;background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:28px 22px;box-shadow:var(--shadow)}
+.mv-card .brand-mark{width:76px;height:76px;margin:0 auto 14px}
+.mv-card h1{font-size:1.8rem;font-weight:900;margin-bottom:10px}
+.mv-card p{margin:0 0 12px;color:var(--muted)}
+.mv-card .mv-lead{color:var(--ink);font-size:1.05rem}
+.mv-card a{color:var(--blue-ink);text-decoration:none;white-space:nowrap}
+.mv-acts{margin:18px 0 10px}
+.mv-ios{text-align:left;margin:14px 0 4px;border-top:1px solid var(--line);padding-top:12px}
+.mv-ios summary{cursor:pointer;font-weight:500;color:var(--blue-ink)}
+.mv-ios ol{margin:10px 0 12px;padding-left:20px;color:var(--muted)}
+.mv-ios li{margin:4px 0}
+.mv-stay{margin-top:8px;color:var(--muted)}
