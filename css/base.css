@@ -627,3 +627,8 @@ html.cb-lock,html.cb-lock body{overscroll-behavior:none;touch-action:none;overfl
 .mv-stay{margin-top:8px;color:var(--muted)}
 
 .menu-foot a{color:var(--blue-ink);font-weight:500;margin-left:4px}
+
+/* ---------- Ranking online (Fase 8) ---------- */
+.ol-box p{margin:0}
+.ol-box a{color:var(--blue-ink)}
+@media (max-width:420px){.seg.tabs button{padding:8px 6px;font-size:.84rem}}

@@ -724,6 +724,8 @@
     const res = counts && o.score > 0 ? ranking.add(o.game, o.daily ? "dia" : o.diff, { name: settings.name || "Eu", score: o.score, time: o.time, extra: Object.assign({}, o.extra || {}, o.daily ? { day: o.daily } : {}) }) : { pos: 0, id: null };
     if (counts && !o.noStats) stats.record(o.game, o.daily ? "dia" : o.diff, { won: g.statsKind === "score" ? undefined : won, time: o.time, score: o.score });
     if (o.daily && counts) daily.save(o.game, { date: o.daily, won, score: o.score, time: o.time, extra: o.extra || null });
+    /* Ranking online (js/online.js, Fase 8): só se o jogador o ligou; o servidor repete as jogadas (o.online). */
+    if (counts && o.online && Sala.online) Sala.online.submit(o);
     const box = el("div", { class: "result" });
     let html = '<div class="big">' + fmtNum(o.score) + '<small>' + esc(unit) + '</small></div>';
     if (o.practice) html += '<div class="badge muted">Repetição · não conta</div>';
@@ -791,7 +793,10 @@
     let g = gameById(gameId) || ready[0];
     let mode = view === "stats" ? "stats" : "rank";
     const DIA = { id: "dia", label: "Do dia" }, ALL = { id: "*", label: "Todas" };
-    const diffsOf = () => (mode === "stats" && g.diffs.length > 1 ? [ALL] : []).concat(g.diffs, g.daily && !g.diffs.some(x => x.id === "dia") ? [DIA] : []);
+    const OL = Sala.online, olOk = x => !!(OL && OL.supports(x.id));
+    /* No separador Online, só os modos que o servidor sabe confirmar (js/online.js). */
+    const olDiffs = () => { const m = OL ? OL.modes(g.id) : []; return g.diffs.filter(x => m.includes(x.id)).concat(m.includes("dia") && !g.diffs.some(x => x.id === "dia") ? [DIA] : []); };
+    const diffsOf = () => mode === "online" ? olDiffs() : (mode === "stats" && g.diffs.length > 1 ? [ALL] : []).concat(g.diffs, g.daily && !g.diffs.some(x => x.id === "dia") ? [DIA] : []);
     /* Jogos com modos (a Cobra: com ou sem paredes) guardam o ranking em "dificuldade + sufixo do modo". */
     const split = k => {
       if (!g.rankModes || k === "dia" || k === "*") return [k, g.rankModes ? g.rankModes[0].id : null];
@@ -802,20 +807,30 @@
     const key = () => g.rankModes && d !== "dia" && d !== "*" ? d + (g.rankModes.find(x => x.id === mo) || g.rankModes[0]).suffix : d;
     if (view === "rivals") mode = "rivals";
     const box = el("div");
-    const tabs = ui.seg([{ id: "rank", label: "Ranking" }, { id: "stats", label: "Estatísticas" }, { id: "rivals", label: "Rivais" }], mode, id => { mode = id; if (mode !== "rivals" && !diffsOf().some(x => x.id === d)) d = g.diffs[0].id; draw(); }, "Ver");
+    if (view === "online" && OL) mode = "online";
+    const tabs = ui.seg([{ id: "rank", label: "Ranking" }].concat(OL ? [{ id: "online", label: "Online" }] : [], [{ id: "stats", label: "Estatísticas" }, { id: "rivals", label: "Rivais" }]), mode, id => {
+      mode = id;
+      if (mode === "online" && !gameId && !olOk(g)) { g = ready.find(olOk) || g; mo = g.rankModes ? g.rankModes[0].id : null; }
+      if (mode !== "rivals" && !diffsOf().some(x => x.id === d)) d = (diffsOf()[0] || g.diffs[0]).id;
+      draw();
+    }, "Ver");
     tabs.classList.add("tabs");
     const filters = el("div", { class: "rank-filters" });
     const table = el("div");
     const draw = () => {
       filters.innerHTML = "";
       if (mode === "rivals") { drawRivals(); return; }
-      if (!gameId) { const sg = ui.seg(ready.map(x => ({ id: x.id, label: x.name })), g.id, id => { g = gameById(id); if (!diffsOf().some(x => x.id === d)) d = g.diffs[0].id; mo = g.rankModes ? g.rankModes[0].id : null; draw(); }, "Jogo"); sg.classList.add("wrap"); filters.appendChild(sg); }
+      if (!gameId) { const sg = ui.seg(ready.filter(x => mode !== "online" || olOk(x)).map(x => ({ id: x.id, label: x.name })), g.id, id => { g = gameById(id); if (!diffsOf().some(x => x.id === d)) d = g.diffs[0].id; mo = g.rankModes ? g.rankModes[0].id : null; draw(); }, "Jogo"); sg.classList.add("wrap"); filters.appendChild(sg); }
       const ds = diffsOf();
       if (ds.length > 1) { const sd = ui.seg(ds, d, id => { d = id; draw(); }, "Dificuldade"); if (ds.length > 3) sd.classList.add("wrap"); filters.appendChild(sd); }
-      if (g.rankModes && d !== "dia" && d !== "*") filters.appendChild(ui.seg(g.rankModes, mo, id => { mo = id; drawTable(); }, "Modo"));
+      if (g.rankModes && d !== "dia" && d !== "*" && mode !== "online") filters.appendChild(ui.seg(g.rankModes, mo, id => { mo = id; drawTable(); }, "Modo"));
       drawTable();
     };
-    const drawTable = () => mode === "stats" ? drawStats() : mode === "rivals" ? drawRivals() : drawRank();
+    const drawTable = () => mode === "stats" ? drawStats() : mode === "rivals" ? drawRivals() : mode === "online" ? drawOnline() : drawRank();
+    const drawOnline = () => {
+      if (!olOk(g)) { table.innerHTML = '<p class="empty">' + esc(g.name) + " ainda não tem ranking online: o servidor só aceita jogos cujos pontos consegue confirmar.</p>"; return; }
+      OL.drawRanking(table, g, d);
+    };
     /* Rivais: vitórias, derrotas e empates por nome, e os últimos duelos (de todos os jogos). */
     const drawRivals = () => {
       const all = duel.data(), list = Object.values(all.rivals).sort((a, b) => (b.w + b.l + b.e) - (a.w + a.l + a.e) || (b.last || 0) - (a.last || 0));
@@ -884,6 +899,8 @@
     fName.appendChild(inp); box.appendChild(fName);
     /* Levar o progresso (js/backup.js) */
     if (Sala.backup) box.appendChild(Sala.backup.settingsField());
+    /* Ranking online (js/online.js, Fase 8) */
+    if (Sala.online) box.appendChild(Sala.online.settingsField());
     /* Versão e atualizações (preenchido pelo app.js) */
     const U = Sala.updates;
     if (U && U.supported) {
