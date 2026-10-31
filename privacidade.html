@@ -24,9 +24,9 @@
 <main class="pv">
   <a class="btn pv-back" href="./">← Voltar aos jogos</a>
   <h1>Privacidade</h1>
-  <p class="meta">Atualizada a 30 de outubro de 2026.</p>
+  <p class="meta">Atualizada a 31 de outubro de 2026 (ranking online).</p>
 
-  <p>A Sala de Espera é um projeto pessoal de jogos curtos. Foi feita para se jogar sem conta, sem publicidade e sem recolher dados sobre quem joga. Esta página explica, sem letra miudinha, o que fica no teu aparelho e o pouco que chega ao servidor.</p>
+  <p>A Sala de Espera é um projeto pessoal de jogos curtos. Foi feita para se jogar sem conta, sem publicidade e sem recolher dados sobre quem joga. Há um ranking online opcional, que só funciona se o ligares. Esta página explica, sem letra miudinha, o que fica no teu aparelho e o pouco que chega ao servidor.</p>
 
   <h2>O que fica no teu aparelho</h2>
   <p>Jogos a meio, definições, nome no ranking, recordes, estatísticas, desafios do dia e rivais ficam guardados no armazenamento local do teu browser (ou da app instalada). Não saem de lá, exceto quando tu decides:</p>
@@ -43,18 +43,27 @@
     <li><b>Uma contagem de visitas, no máximo uma vez por dia e por aparelho.</b> O pedido diz apenas há quanto tempo este aparelho abriu a app pela primeira vez (em escalões: hoje, 1 a 6 dias, 7 a 29 ou 30 ou mais) e se entrou por um link de duelo. O servidor soma 1 ao total desse dia e deita fora o resto: não guarda IP, aparelho, browser, nome nem identificador de espécie alguma. Serve só para saber quantas pessoas jogam e quantas voltam.</li>
   </ul>
 
+  <h2>Ranking online (só se o ligares)</h2>
+  <p>Vem desligado. Liga-se nas Definições, com uma alcunha e a confirmação de que tens 13 anos ou mais (a idade a partir da qual, em Portugal, se pode dar este consentimento sem os pais). Desligado, nada do que está descrito aqui acontece.</p>
+  <ul>
+    <li><b>O que o servidor guarda:</b> a alcunha que escolheres; um resumo (hash) do código de recuperação, que não permite saber o código; e os teus resultados (jogo, dificuldade, pontos, tempo, data e qual o tabuleiro, para o mesmo não contar duas vezes). Nada de email, nome verdadeiro, IP, aparelho ou localização.</li>
+    <li><b>O que vai em cada envio:</b> as jogadas do jogo acabado, para o servidor as repetir e confirmar os pontos. Servem só para essa verificação e não ficam guardadas.</li>
+    <li><b>Quem vê:</b> a alcunha, os pontos e os tempos aparecem no ranking a quem o abrir. Por isso, não uses o teu nome completo nem nada que te identifique.</li>
+    <li><b>Onde:</b> numa base de dados da Cloudflare, na Europa ocidental, a mesma empresa que aloja a app.</li>
+    <li><b>Durante quanto tempo:</b> os desafios do dia e a lista de tabuleiros enviados, 90 dias; o melhor resultado de cada jogo, enquanto a conta existir. Uma conta sem atividade durante 12 meses é apagada com tudo o que tem.</li>
+    <li><b>O código de recuperação</b> é a chave da conta: fica no teu aparelho (e no código de "Levar o progresso") e mais ninguém o tem. Quem o tiver entra na tua conta; quem o perder perde a conta, porque não há email para o recuperar.</li>
+    <li><b>Apagar:</b> nas Definições, "Apagar conta" apaga do servidor, na hora, a alcunha e todos os resultados. "Desligar" só deixa de enviar a partir daquele aparelho.</li>
+  </ul>
+
   <h2>O que não há</h2>
   <ul>
     <li>Cookies, publicidade ou serviços de estatística de terceiros.</li>
-    <li>Pedidos a outros sites: o tipo de letra e tudo o resto vêm do próprio endereço da app.</li>
-    <li>Contas, emails ou dados vendidos ou cedidos a quem quer que seja.</li>
+    <li>Pedidos a outros sites: o tipo de letra, o ranking e tudo o resto vêm do próprio endereço da app.</li>
+    <li>Emails, palavras-passe ou dados vendidos ou cedidos a quem quer que seja.</li>
   </ul>
 
-  <h2>Funções online (futuro)</h2>
-  <p>Está prevista uma parte online opcional (ranking, amigos e grupos). Quando chegar, esta página será revista antes, e nada disso funciona sem o ligares tu. Os jogos continuarão a funcionar sem rede e sem conta.</p>
-
   <h2>Contacto</h2>
-  <p>Dúvidas ou pedidos sobre privacidade: abre um pedido ("issue") no repositório público do projeto, <a href="https://github.com/nydro-dev/sala-de-espera">github.com/nydro-dev/sala-de-espera</a>.</p>
+  <p>Dúvidas ou pedidos sobre privacidade: abre um pedido ("issue") no repositório público do projeto, <a href="https://github.com/nydro-dev/sala-de-espera">github.com/nydro-dev/sala-de-espera</a>. Nunca escrevas lá o teu código de recuperação: para apagar a conta basta o botão nas Definições.</p>
 </main>
 </div>
 <script>
