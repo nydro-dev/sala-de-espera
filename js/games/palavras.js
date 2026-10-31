@@ -3,12 +3,9 @@
   "use strict";
   const { el, fmtNum, fmtTime, store, sound, vibrate, motion, fx, toast, ranking, ui, finish, stats: ST } = Sala;
 
-  const TRIES = 6, LENS = [4, 5, 6, 7];
-  const POINTS = [1000, 800, 600, 400, 250, 150];   /* por número de tentativas, igual em todos os tamanhos */
-  const EPOCH = Date.UTC(2026, 9, 26);              /* palavra n.º 1: 26/10/2026 */
-  /* A partir desta data, o tamanho da palavra do dia depende do dia da semana (antes, sempre 5). */
-  const SIZES_FROM = "2026-10-28";
-  const WEEK = [7, 5, 4, 5, 6, 5, 6];               /* domingo, segunda, terça, quarta, quinta, sexta, sábado */
+  /* Calendário da palavra do dia e pontos em js/logic/palavras.js (o servidor confirma o desafio do dia com o
+     mesmo código, Fase 8). */
+  const LP = SalaLogica.palavras, { TRIES, LENS, POINTS, key, words, dayNumber, dateOf, dailyLen } = LP;
 
   /* Modos do jogo livre: "livre" é o de 5 letras (o nome antigo fica, para não perder recordes);
      os outros são "livre4", "livre6" e "livre7". */
@@ -17,8 +14,6 @@
   const lenOf = m => m === "livre" ? 5 : +String(m).slice(5);
   const DIFFS = [{ id: "dia", label: "Palavra do dia" }].concat(LENS.map(L => ({ id: modeOf(L), label: L + " letras" })));
 
-  const key = w => w.normalize("NFD").replace(/[̀-ͯ]/g, "");  /* "ação" → "acao" */
-  const words = s => (s || "").split(" ").filter(Boolean);
   const SOLS = { 4: words(window.SALA_SOLUCOES_4), 5: words(window.SALA_SOLUCOES), 6: words(window.SALA_SOLUCOES_6), 7: words(window.SALA_SOLUCOES_7) };
   const SOL = SOLS[5];
   const SOLSET = new Set([].concat(SOLS[4], SOLS[5], SOLS[6], SOLS[7]));
@@ -27,17 +22,7 @@
     .forEach(w => { const k = key(w); if (!SHOWN.has(k) || SOLSET.has(w)) SHOWN.set(k, w); });
 
   const today = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
-  const dayNumber = ds => { const [y, m, d] = ds.split("-").map(Number); return Math.floor((Date.UTC(y, m - 1, d) - EPOCH) / 864e5) + 1; };
-  const dateOf = n => new Date(EPOCH + (n - 1) * 864e5).toISOString().slice(0, 10);
-  const dailyLen = ds => ds < SIZES_FROM ? 5 : WEEK[new Date(EPOCH + (dayNumber(ds) - 1) * 864e5).getUTCDay()];
-  /* Cada tamanho tem a sua fila: a palavra é a n.ª da lista desse tamanho, contando só os dias desse tamanho.
-     Nas de 5 letras, os dias antes de SIZES_FROM contam todos, por isso a fila continua sem repetir. */
-  function dailyWord(ds) {
-    const L = dailyLen(ds), n = dayNumber(ds); let k = 0;
-    for (let i = 1; i <= n; i++) if (dailyLen(dateOf(i)) === L) k++;
-    const list = SOLS[L];
-    return list[((k - 1) % list.length + list.length) % list.length];
-  }
+  const dailyWord = ds => LP.dailyWord(ds, SOLS);
 
   /* ---------- Estado ---------- */
   let P = null, els = null, typing = "", busy = false;
@@ -129,6 +114,8 @@
     } else if (g.mode === "dia") P.streak = 0;
     g.points = won ? pointsFor(g) : 0;
     if (!won) ST.record("palavras", g.mode, { won: false, time: g.time });
+    /* Ranking online (Fase 8): a palavra do dia vai com as tentativas, ganha ou perdida (só a primeira vez conta). */
+    if (g.mode === "dia" && Sala.online) Sala.online.submit({ game: "palavras", diff: "dia", daily: g.date, time: g.time, score: won ? POINTS[g.guesses.length - 1] : 0, won, online: { guesses: g.guesses.slice() } });
   }
   function pointsFor(g) {
     const base = POINTS[g.guesses.length - 1];

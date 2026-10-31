@@ -6,11 +6,9 @@
   const DIFFS = [{ id: "d3", label: "3 cartas" }];
   const RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
   const SUITS = ["♠", "♥", "♦", "♣"];
-  const rk = c => c % 13, st = c => (c / 13) | 0, isRed = c => st(c) === 1 || st(c) === 2;
-  /* Pontos por jogada; no fim junta-se o bónus de tempo. */
-  const PTS = { toTab: 5, toFound: 10, flip: 5, fromFound: -15, recycle: -20, undo: -10 };
-  const BONUS = 1000, BONUS_T = 900; /* o bónus desce de 1000 a 0 em 15 minutos */
-  const HIST = 60, LABEL = "3 cartas";
+  /* Baralho, regras e pontos em js/logic/solitario.js (o servidor repete os jogos com o mesmo código, Fase 8). */
+  const LS = SalaLogica.solitario, { rk, st, isRed, top } = LS;
+  const LABEL = "3 cartas";
 
   let S = null, els = null, drag = null, busy = false, autoT = 0, isDaily = false, duelD = null;
   const KEY = () => duelD ? "soli:duelo" : isDaily ? "soli:dia" : "soli";
@@ -19,12 +17,7 @@
   const flipped = new Set();
 
   /* ---------- Estado ---------- */
-  function fresh(rnd) {
-    const d = shuffle([...Array(52).keys()], rnd);
-    const tab = [];
-    for (let i = 0; i < 7; i++) { const col = []; for (let j = 0; j <= i; j++) col.push({ c: d.pop(), up: j === i }); tab.push(col); }
-    return { diff: "d3", stock: d, waste: [], found: [[], [], [], []], tab, score: 0, time: 0, moves: 0, passes: 0, undos: 0, over: false, won: false, hist: [] };
-  }
+  const fresh = rnd => Object.assign(LS.fresh(rnd), { log: [] }); /* log: jogadas para o ranking online */
   function load() {
     const d = store.get(KEY(), null);
     if (d && d.tab && d.found && (duelD ? d.bid === duelD.bid : !isDaily || d.daily === daily.today())) { S = d; if (!S.hist) S.hist = []; return true; }
@@ -32,12 +25,6 @@
   }
   const save = () => { if (S) store.set(KEY(), S); };
   const lastDiff = () => "d3";
-  const addPts = n => { S.score = Math.max(0, S.score + n); };
-  function snapshot() {
-    S.hist.push(JSON.stringify({ stock: S.stock, waste: S.waste, found: S.found, tab: S.tab, score: S.score, moves: S.moves, passes: S.passes }));
-    if (S.hist.length > HIST) S.hist.shift();
-  }
-
   function newGame(practice) {
     clearTimeout(autoT); busy = false;
     if (duelD) { S = fresh(Sala.rng("soli:" + duelD.b)); S.seed = duelD.b; S.bid = duelD.bid; }
@@ -83,7 +70,7 @@
     finish({
       game: "soli", diff: "d3", diffLabel: LABEL, title: "Desafio terminado", score: S.score, time: S.time, won: false, daily: dd, practice,
       breakdown: [["Cartas nas fundações", found + " de 52"], ["Voltas ao baralho", String(S.passes)], ["Desfazer usados", String(S.undos)], ["Tempo", fmtTime(S.time)]],
-      extra: { moves: S.moves, found },
+      extra: { moves: S.moves, found }, online: S.log ? { log: S.log } : null,
       share: { lost: found + "/52 cartas", lines: [found + " de 52 cartas arrumadas", "Tempo " + fmtTime(S.time)] },
       newLabel: "Jogo normal", onNew: () => Sala.go("soli")
     });
@@ -91,14 +78,7 @@
   }
 
   /* ---------- Regras ---------- */
-  const top = a => a[a.length - 1];
-  function canFound(c, i) { const f = S.found[i]; return f.length ? st(top(f)) === st(c) && rk(c) === rk(top(f)) + 1 : rk(c) === 0; }
-  function canTab(c, i) {
-    const col = S.tab[i];
-    if (!col.length) return rk(c) === 12;
-    const t = top(col);
-    return t.up && isRed(t.c) !== isRed(c) && rk(c) === rk(t.c) - 1;
-  }
+  const canFound = (c, i) => LS.canFound(S, c, i), cardsAt = src => LS.cardsAt(S, src), legal = (src, dst) => LS.legal(S, src, dst);
   /* Onde está uma carta, e se pode ser mexida. */
   function where(c) {
     let k = S.stock.indexOf(c); if (k >= 0) return { type: "stock" };
@@ -106,17 +86,6 @@
     for (let i = 0; i < 4; i++) { k = S.found[i].indexOf(c); if (k >= 0) return { type: "found", i, movable: k === S.found[i].length - 1 }; }
     for (let i = 0; i < 7; i++) { k = S.tab[i].findIndex(o => o.c === c); if (k >= 0) return { type: "tab", i, k, movable: S.tab[i][k].up }; }
     return null;
-  }
-  function cardsAt(src) {
-    if (src.type === "waste") return [top(S.waste)];
-    if (src.type === "found") return [top(S.found[src.i])];
-    return S.tab[src.i].slice(src.k).map(o => o.c);
-  }
-  function legal(src, dst) {
-    const cards = cardsAt(src), c = cards[0];
-    if (dst.type === "found") return src.type !== "found" && cards.length === 1 && canFound(c, dst.i);
-    if (src.type === "tab" && src.i === dst.i) return false;
-    return canTab(c, dst.i);
   }
   /* Toque: fundações primeiro, depois as colunas (com cartas, e só então as vazias). */
   function bestTarget(src) {
@@ -131,50 +100,31 @@
   }
 
   /* ---------- Jogadas ---------- */
+  /* Registo para o ranking online (Fase 8): "d", "u" ou [origem, i, k, destino, j]. */
+  const rec = e => { if (S.log) S.log.push(e); };
   function doMove(src, dst, quiet) {
-    if (!legal(src, dst)) return false;
-    snapshot();
-    let cards;
-    if (src.type === "waste") cards = [S.waste.pop()];
-    else if (src.type === "found") cards = [S.found[src.i].pop()];
-    else cards = S.tab[src.i].splice(src.k).map(o => o.c);
-    if (dst.type === "found") { S.found[dst.i].push(cards[0]); addPts(PTS.toFound); }
-    else {
-      S.tab[dst.i].push(...cards.map(c => ({ c, up: true })));
-      if (src.type === "waste") addPts(PTS.toTab);
-      if (src.type === "found") addPts(PTS.fromFound);
-    }
-    if (src.type === "tab") {
-      const col = S.tab[src.i], t = top(col);
-      if (t && !t.up) { t.up = true; addPts(PTS.flip); flipped.add(t.c); }
-    }
-    S.moves++;
+    const r = LS.mover(S, src, dst); if (!r) return false;
+    rec([src.type[0], src.i || 0, src.k || 0, dst.type[0], dst.i]);
+    if (r.flip >= 0) flipped.add(r.flip);
     if (!quiet) { dst.type === "found" ? sound.place() : sound.tap(); vibrate(8); }
     afterMove();
     return true;
   }
   function drawCards() {
     if (busy || S.over) return;
-    if (!S.stock.length) {
-      if (!S.waste.length) return;
-      snapshot();
-      S.stock = S.waste.reverse(); S.waste = [];
-      S.passes++; addPts(PTS.recycle); S.moves++;
-      sound.open(); afterMove(); return;
-    }
-    snapshot();
-    for (let k = 0; k < 3 && S.stock.length; k++) { const c = S.stock.pop(); S.waste.push(c); flipped.add(c); }
-    S.moves++; sound.note(); afterMove();
+    const r = LS.virar(S); if (!r) return;
+    rec("d");
+    if (r.recycled) sound.open(); else { r.drawn.forEach(c => flipped.add(c)); sound.note(); }
+    afterMove();
   }
   function afterMove() {
-    if (S.found.every(f => f.length === 13)) { win(); return; }
+    if (LS.ganhou(S)) { win(); return; }
     save(); render();
   }
   function undo() {
     if (busy || S.over) return;
-    if (!S.hist.length) { toast("Não há jogadas para desfazer."); return; }
-    const p = JSON.parse(S.hist.pop());
-    Object.assign(S, p); S.undos++; addPts(PTS.undo);
+    if (!LS.desfazer(S)) { toast("Não há jogadas para desfazer."); return; }
+    rec("u");
     sound.tap(); save(); render();
   }
   const canAuto = () => !S.over && !S.stock.length && !S.waste.length && S.tab.every(col => col.every(o => o.up));
@@ -198,7 +148,7 @@
   }
   function win() {
     S.over = true; S.won = true; S.hist = []; busy = false; save(); render();
-    const bonus = Math.max(0, Math.round(BONUS * (1 - S.time / BONUS_T)));
+    const bonus = LS.bonus(S.time);
     const total = S.score + bonus;
     msg("Todas as cartas arrumadas!");
     if (els && motion()) {
@@ -213,6 +163,7 @@
         challenge: S.seed ? { d: "d3", b: S.seed, p: 52 } : null,
         breakdown: [["Pontos das jogadas", fmtNum(S.score)], ["Bónus de tempo", "+" + fmtNum(bonus)], ["Voltas ao baralho", String(S.passes)], ["Desfazer usados", String(S.undos)], ["Tempo", fmtTime(S.time)]],
         extra: { moves: S.moves },
+        online: S.log && !dD ? (dd ? { log: S.log } : { seed: S.seed, log: S.log }) : null,
         share: { lines: ["52 de 52 cartas arrumadas", "Tempo " + fmtTime(S.time)] },
         newLabel: dd ? "Jogo normal" : "Novo jogo",
         onNew: () => dd ? Sala.go("soli") : newGame()

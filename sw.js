@@ -2,7 +2,8 @@
 const VERSION = "sala-v18";
 const CORE = [
   "./", "index.html", "privacidade.html", "manifest.webmanifest",
-  "css/base.css", "js/core.js", "js/backup.js", "js/mudanca.js", "js/menu-art.js", "js/app.js", "js/games/sudoku.js", "js/games/minas.js",
+  "css/base.css", "js/logic/base.js", "js/logic/sudoku.js", "js/logic/minas.js", "js/logic/dobra.js", "js/logic/solitario.js", "js/logic/palavras.js",
+  "js/core.js", "js/backup.js", "js/mudanca.js", "js/menu-art.js", "js/app.js", "js/games/sudoku.js", "js/games/minas.js",
   "js/games/dobra.js", "js/games/palavras.js", "js/data/validas.js", "js/data/solucoes.js",
   "js/data/validas-4.js", "js/data/solucoes-4.js", "js/data/validas-6.js", "js/data/solucoes-6.js", "js/data/validas-7.js", "js/data/solucoes-7.js",
   "js/games/casino.js", "js/games/blackjack.js", "js/games/roleta.js",

@@ -18,14 +18,15 @@
 
   const DIFFS = [{ id: "s3", label: "3×3", n: 3 }, { id: "s4", label: "4×4", n: 4 }, { id: "s5", label: "5×5", n: 5 }];
   const sizeOf = id => DIFFS.find(d => d.id === id).n;
-  const UNDOS = 3, SLIDE = 110;
+  /* Deslizar e peças novas em js/logic/dobra.js (o servidor repete os jogos com o mesmo código, Fase 8). */
+  const LD = SalaLogica.dobra, { UNDOS } = LD, SLIDE = 110;
 
   let S = null, els = null, busy = false, nextId = 1, touch = null, duelD = null;
   const KEY = () => duelD ? "dobra:duelo" : "dobra";
   /* Peças: { id, v, r, c }. Guardadas tal como estão, para retomar o jogo.
      As peças novas saem da semente do jogo (a n.ª peça usa "semente:n"): o mesmo jogo dá para mandar num duelo,
      e desfazer não muda a peça que vem a seguir. */
-  function fresh(diff, seed) { return { diff, n: sizeOf(diff), seed: seed || Sala.duel.newSeed(), spawns: 0, tiles: [], score: 0, time: 0, over: false, reached: false, undos: UNDOS, prev: null, moves: 0 }; }
+  function fresh(diff, seed) { return { diff, n: sizeOf(diff), seed: seed || Sala.duel.newSeed(), spawns: 0, tiles: [], score: 0, time: 0, over: false, reached: false, undos: UNDOS, prev: null, moves: 0, log: "" }; }
   function load() {
     const d = store.get(KEY(), null);
     if (d && d.tiles && d.n && (!duelD || d.bid === duelD.bid)) {
@@ -38,13 +39,10 @@
   const save = () => { if (S) store.set(KEY(), S); };
   const lastDiff = () => (S && !duelD && S.diff) || store.get("dobra", {}).diff || "s4";
 
-  const at = (r, c) => S.tiles.find(t => t.r === r && t.c === c);
-  function empty() { const out = []; for (let r = 0; r < S.n; r++) for (let c = 0; c < S.n; c++) if (!at(r, c)) out.push([r, c]); return out; }
   function spawn() {
-    const e = empty(); if (!e.length) return null;
-    const rnd = Sala.rng("dobra:" + S.seed + ":" + (S.spawns++));
-    const v = rnd() < .9 ? 2 : 4, [r, c] = e[rnd() * e.length | 0];
-    const t = { id: nextId++, v, r, c, born: true };
+    const p = LD.nascer(S.tiles, S.n, S.seed, S.spawns); if (!p) return null;
+    S.spawns++;
+    const t = { id: nextId++, v: p.v, r: p.r, c: p.c, born: true };
     S.tiles.push(t); return t;
   }
   function newGame(diff) {
@@ -64,40 +62,15 @@
   }
 
   /* ---------- Movimento ---------- */
-  function canMove() {
-    if (empty().length) return true;
-    for (const t of S.tiles) { const a = at(t.r, t.c + 1), b = at(t.r + 1, t.c); if ((a && a.v === t.v) || (b && b.v === t.v)) return true; }
-    return false;
-  }
+  const canMove = () => LD.podeMover(S.tiles, S.n);
   function move(dir) {
     if (busy || S.over) return;
-    const n = S.n, vec = { left: [0, -1], right: [0, 1], up: [-1, 0], down: [1, 0] }[dir];
     const snap = JSON.stringify({ tiles: S.tiles, score: S.score, spawns: S.spawns });
     S.tiles.forEach(t => { delete t.born; delete t.merged; delete t.dead; });
-    let moved = false, gained = 0, best = 0;
-    for (let line = 0; line < n; line++) {
-      /* As peças da linha, pela ordem em que vão encostar. */
-      const cells = [];
-      for (let k = 0; k < n; k++) {
-        const i = vec[1] === 1 || vec[0] === 1 ? n - 1 - k : k;
-        const r = vec[0] ? i : line, c = vec[0] ? line : i;
-        const t = at(r, c); if (t) cells.push(t);
-      }
-      let pos = 0, last = null;
-      for (const t of cells) {
-        const target = vec[1] === 1 || vec[0] === 1 ? n - 1 - pos : pos;
-        if (last && last.v === t.v && !last.merged) {
-          t.r = last.r; t.c = last.c; t.dead = true; last.merged = true; last.v *= 2;
-          gained += last.v; best = Math.max(best, last.v); moved = true; last = null;
-          continue;
-        }
-        const r = vec[0] ? target : line, c = vec[0] ? line : target;
-        if (t.r !== r || t.c !== c) moved = true;
-        t.r = r; t.c = c; last = t; pos++;
-      }
-    }
+    const { moved, gained, best } = LD.deslizar(S.tiles, S.n, dir);
     if (!moved) { sound.tap(); return; }
     S.prev = snap; S.moves++; S.score += gained;
+    if (S.log != null) S.log += dir[0]; /* registo para o ranking online (Fase 8) */
     busy = true;
     const finishMove = () => {
       S.tiles = S.tiles.filter(t => !t.dead);
@@ -114,6 +87,7 @@
     if (busy || S.over || !S.prev) return;
     if (!S.undos) { toast("Já usaste os " + UNDOS + " desfazer deste jogo."); return; }
     const p = JSON.parse(S.prev); S.tiles = p.tiles; S.score = p.score; if (p.spawns != null) S.spawns = p.spawns; S.prev = null; S.undos--;
+    if (S.log != null) S.log += "z";
     S.tiles.forEach(t => { delete t.born; delete t.merged; delete t.dead; });
     sound.tap(); save(); build(); render();
   }
@@ -126,6 +100,7 @@
       game: "dobra", diff: S.diff, diffLabel: dl, title: "Fim de jogo", score: S.score, time: S.time, duel: dD, progress: big,
       breakdown: [["Tabuleiro", dl], ["Maior peça", String(big)], ["Jogadas", fmtNum(S.moves)], ["Tempo", fmtTime(S.time)]],
       extra: { big }, onNew: () => newGame(S.diff),
+      online: S.log != null && !S.legacy && !dD ? { seed: S.seed, log: S.log } : null,
       challenge: S.legacy ? null : { d: S.diff, b: S.seed, p: big }
     }), motion() ? 700 : 100);
   }

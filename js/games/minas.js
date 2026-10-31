@@ -5,9 +5,8 @@
   const DAILY_DIFF = "medium"; /* o desafio do dia é sempre um Médio (16×16, 40 minas) */
 
   const DIFFS = [{ id: "beginner", label: "Iniciante" }, { id: "easy", label: "Fácil" }, { id: "medium", label: "Médio" }, { id: "hard", label: "Difícil" }, { id: "extreme", label: "Extremo" }];
-  const CFG = { beginner: { w: 8, h: 8, m: 8 }, easy: { w: 9, h: 9, m: 10 }, medium: { w: 16, h: 16, m: 40 }, hard: { w: 30, h: 16, m: 99 }, extreme: { w: 30, h: 20, m: 130 } };
-  const BASE = { beginner: 250, easy: 500, medium: 2000, hard: 5000, extreme: 9000 };
-  const PAR = { beginner: 30, easy: 60, medium: 240, hard: 600, extreme: 1080 }; /* segundos de referência para o bónus */
+  /* Tabuleiros, minas pela semente e pontuação em js/logic/minas.js (o servidor usa o mesmo código, Fase 8). */
+  const LM = SalaLogica.minas, { CFG, BASE, PAR } = LM;
   const TOUCH_CS = 34; /* tamanho confortável para o dedo, com a lupa ligada */
   const FLAG = '<svg viewBox="0 0 20 20"><path d="M5.5 2.5v15" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"/><path d="M6.5 3h9.5l-2.6 3.8L16 10.6H6.5z" fill="var(--yellow)" stroke="var(--ink)" stroke-width="1.2" stroke-linejoin="round"/></svg>';
   const MINE = '<svg viewBox="0 0 20 20"><path d="M10 1.5v17M1.5 10h17M4 4l12 12M16 4L4 16" stroke="var(--ink)" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="10" r="5.6" fill="var(--ink)"/><circle cx="8.2" cy="8.2" r="1.5" fill="var(--surface)"/></svg>';
@@ -22,7 +21,7 @@
     const narrow = innerWidth < 700 && innerHeight > innerWidth;
     const rot = c.w > c.h && narrow;
     const w = rot ? c.h : c.w, h = rot ? c.w : c.h, n = w * h;
-    return { diff, w, h, rot, seed: Sala.duel.newSeed(), m: c.m, mine: null, num: null, open: Array(n).fill(0), flag: Array(n).fill(0), state: "ready", time: 0, boom: -1, flagMode: false };
+    return { diff, w, h, rot, seed: Sala.duel.newSeed(), m: c.m, mine: null, num: null, open: Array(n).fill(0), flag: Array(n).fill(0), state: "ready", time: 0, boom: -1, flagMode: false, log: [] };
   }
   function load() {
     const d = store.get(KEY(), null);
@@ -63,25 +62,8 @@
   /* Desafio do dia: minas postas pela semente e uma zona já aberta, igual para toda a gente
      (sem isto, a primeira casa escolhida mudaria o tabuleiro). Sem rodar, porque é quadrado. */
   function dailyBoard() {
-    const ds = daily.today(), c = CFG[DAILY_DIFF], n = c.w * c.h, rnd = daily.rng("minas", ds);
-    const B = { diff: DAILY_DIFF, daily: ds, w: c.w, h: c.h, m: c.m, mine: Array(n).fill(0), num: null, open: Array(n).fill(0), flag: Array(n).fill(0), state: "ready", time: 0, boom: -1, flagMode: false };
-    shuffle([...Array(n).keys()], rnd).slice(0, c.m).forEach(i => B.mine[i] = 1);
-    const prev = M; M = B;
-    B.num = B.mine.map((_, i) => nb(i).reduce((s, j) => s + B.mine[j], 0));
-    /* A zona de partida é a maior mancha de zeros (em empate, a primeira). */
-    const seen = new Uint8Array(n); let best = -1, bestSize = 0;
-    for (let i = 0; i < n; i++) {
-      if (seen[i] || B.mine[i] || B.num[i]) continue;
-      let size = 0; const q = [i]; seen[i] = 1;
-      while (q.length) { const x = q.pop(); size++; for (const j of nb(x)) if (!seen[j] && !B.mine[j] && !B.num[j]) { seen[j] = 1; q.push(j); } }
-      if (size > bestSize) { bestSize = size; best = i; }
-    }
-    if (best < 0) best = B.mine.findIndex(v => !v);
-    const q = [best];
-    while (q.length) { const x = q.shift(); if (B.open[x]) continue; B.open[x] = 1; if (!B.num[x]) for (const j of nb(x)) if (!B.open[j]) q.push(j); }
-    B.start = best;
-    M = prev;
-    return B;
+    const ds = daily.today(), D = LM.diario(ds);
+    return { diff: D.diff, daily: ds, w: D.w, h: D.h, m: D.m, mine: D.mine, num: D.num, open: D.open, flag: Array(D.w * D.h).fill(0), state: "ready", time: 0, boom: -1, flagMode: false, start: D.start, log: [] };
   }
   /* Duelo: as minas saem da semente e da primeira casa de quem desafiou, e essa zona já vem aberta.
      O tabuleiro é guardado "deitado" (como no PC); no telemóvel ao alto aparece transposto, que é o mesmo campo. */
@@ -119,11 +101,10 @@
   const nb = i => { const { w, h } = M, x = i % w, y = (i / w) | 0, r = []; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { if (!dx && !dy) continue; const nx = x + dx, ny = y + dy; if (nx >= 0 && ny >= 0 && nx < w && ny < h) r.push(ny * w + nx); } return r; };
   /* Minas postas pela semente do jogo, longe da primeira casa: o mesmo campo dá para mandar num duelo. */
   function plant(safe) {
-    const n = M.w * M.h, ban = new Set([safe, ...nb(safe)].map(toCanon));
     if (!M.seed) M.seed = Sala.duel.newSeed();
     M.first = toCanon(safe);
-    M.mine = Array(n).fill(0);
-    shuffle([...Array(n).keys()].filter(i => !ban.has(i)), Sala.rng("minas:" + M.seed)).slice(0, M.m).forEach(ci => M.mine[toDisp(ci)] = 1);
+    M.mine = Array(M.w * M.h).fill(0);
+    LM.plantar(M.diff, M.seed, M.first).forEach((v, ci) => { if (v) M.mine[toDisp(ci)] = 1; });
     M.num = M.mine.map((_, i) => nb(i).reduce((s, j) => s + M.mine[j], 0));
   }
 
@@ -326,6 +307,8 @@
   /* ---------- Jogo ---------- */
   function act(i, what) {
     if (M.state === "over" || M.state === "won") return;
+    /* Registo para o ranking online (Fase 8): casa no tabuleiro deitado e 0 = abrir ou atalho, 1 = bandeira. */
+    if (M.log) M.log.push([toCanon(i), what === "flag" ? 1 : 0]);
     if (M.open[i]) return chord(i);
     if (what === "flag") return toggleFlag(i);
     reveal([i]);
@@ -380,7 +363,7 @@
     const opened = M.open.reduce((a, b) => a + b, 0), total = M.w * M.h - M.m;
     setTimeout(() => {
       finish({
-        game: "minas", diff: M.diff, diffLabel: "Médio", title: "Boom", score: 0, time: M.time, won: false, daily: dd, practice,
+        game: "minas", diff: M.diff, diffLabel: "Médio", title: "Boom", score: 0, time: M.time, won: false, daily: dd, practice, online: M.log ? { log: M.log } : null,
         breakdown: [["Casas abertas", fmtNum(opened) + " de " + fmtNum(total)], ["Tempo", fmtTime(M.time)]],
         share: { lost: "💥 Rebentou", lines: ["💥 Rebentou ao fim de " + fmtTime(M.time), fmtNum(Math.round(100 * opened / total)) + " % do campo limpo"] },
         newLabel: "Jogo normal", onNew: () => Sala.go("minas")
@@ -395,15 +378,14 @@
     M.state = "won"; save();
     for (let i = 0; i < n; i++) if (M.mine[i]) M.flag[i] = 1;
     render();
-    const t = Math.max(1, M.time), par = PAR[M.diff], base = BASE[M.diff];
-    const mult = t <= par ? 1 + (par - t) / par : Math.max(0.25, par / t);
-    const total = Math.round(base * mult), dl = DIFFS.find(d => d.id === M.diff).label;
+    const { par, base, mult, total } = LM.pontos(M.diff, M.time), dl = DIFFS.find(d => d.id === M.diff).label;
     msg("Campo limpo em " + fmtTime(M.time) + ".");
     const dd = M.daily, practice = !!(dd && (M.practice || daily.result("minas", dd))), dD = duelD;
     const ch = M.seed && M.first != null ? { d: M.diff, b: M.seed + "." + M.first, p: n - M.m } : null;
     setTimeout(() => {
       finish({
         game: "minas", diff: M.diff, diffLabel: dl, title: "Campo limpo", score: total, time: M.time, daily: dd, practice, duel: dD, progress: n - M.m, challenge: ch,
+        online: M.log && !dD ? (dd ? { log: M.log } : { seed: M.seed, first: M.first, log: M.log }) : null,
         breakdown: [["Base (" + dl + ")", fmtNum(base)], ["Tempo " + fmtTime(M.time) + " (referência " + fmtTime(par) + ")", "× " + mult.toFixed(2).replace(".", ",")]],
         share: { lines: ["Campo limpo em " + fmtTime(M.time)] },
         newLabel: dd ? "Jogo normal" : "Novo jogo",

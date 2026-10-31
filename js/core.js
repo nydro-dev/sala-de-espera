@@ -16,15 +16,8 @@
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const fmtTime = s => { s = Math.max(0, s | 0); const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = String(s % 60).padStart(2, "0"); return h ? h + ":" + String(m).padStart(2, "0") + ":" + x : m + ":" + x; };
   const fmtNum = n => Math.round(n).toLocaleString("pt-PT");
-  const shuffle = (a, rnd) => { rnd = rnd || Math.random; for (let i = a.length - 1; i > 0; i--) { const j = rnd() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const { shuffle, rng } = SalaLogica; /* js/logic/base.js: o mesmo código corre no servidor */
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-  /* Gerador com semente: a mesma frase dá sempre a mesma sequência, em qualquer aparelho. */
-  function rng(str) {
-    let h = 1779033703 ^ str.length;
-    for (let i = 0; i < str.length; i++) { h = Math.imul(h ^ str.charCodeAt(i), 3432918353); h = h << 13 | h >>> 19; }
-    let a = h >>> 0;
-    return () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
-  }
   const SITE = "https://saladeespera.pages.dev/"; /* endereço novo desde a Fase 7; o antigo encaminha (js/mudanca.js) */
 
   /* ---------- Armazenamento local (tudo protegido) ---------- */

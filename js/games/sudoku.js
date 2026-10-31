@@ -5,192 +5,8 @@
   const DAILY_DIFF = "medium"; /* o desafio do dia é sempre um Médio */
 
   const DIFFS = [{ id: "beginner", label: "Iniciante" }, { id: "easy", label: "Fácil" }, { id: "medium", label: "Médio" }, { id: "hard", label: "Difícil" }, { id: "evil", label: "Diabólico" }];
-  const BASE = { beginner: 500, easy: 1000, medium: 2000, hard: 3500, evil: 5000 };
-  const SPAN = { beginner: 1200, easy: 2400, medium: 2400, hard: 2400, evil: 3600 }; /* segundos até o tempo esgotar a base */
-  /* Casas dadas (objetivo) e técnicas exigidas pelo avaliador lógico: [mínima, máxima]. */
-  const GIVENS = { beginner: 46, easy: 40, medium: 32, hard: 26, evil: 17 };
-  const LEVEL = { beginner: [1, 1], easy: [1, 1], medium: [1, 2], hard: [2, 3], evil: [3, 4] };
-
-  /* ---------- Gerador (solução única garantida) ---------- */
-  const rowOf = i => (i / 9) | 0, colOf = i => i % 9, boxOf = i => ((rowOf(i) / 3) | 0) * 3 + ((colOf(i) / 3) | 0);
-  const PEERS = [...Array(81)].map((_, i) => { const p = []; for (let j = 0; j < 81; j++) if (j !== i && (rowOf(j) === rowOf(i) || colOf(j) === colOf(i) || boxOf(j) === boxOf(i))) p.push(j); return p; });
-  const UNITS = [];
-  for (let k = 0; k < 9; k++) {
-    UNITS.push([...Array(9)].map((_, c) => k * 9 + c));
-    UNITS.push([...Array(9)].map((_, r) => r * 9 + k));
-    UNITS.push([...Array(9)].map((_, j) => (((k / 3) | 0) * 3 + ((j / 3) | 0)) * 9 + (k % 3) * 3 + (j % 3)));
-  }
-  const unitsOf = i => UNITS.filter(u => u.includes(i));
-  const ok = (g, i, v) => { for (const p of PEERS[i]) if (g[p] === v) return false; return true; };
-  function fill(g, rnd) { const i = g.indexOf(0); if (i < 0) return true; for (const v of shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9], rnd)) { if (ok(g, i, v)) { g[i] = v; if (fill(g, rnd)) return true; g[i] = 0; } } return false; }
-  function count(g, lim) {
-    let best = -1, bc = 10;
-    for (let i = 0; i < 81; i++) if (!g[i]) { let c = 0; for (let v = 1; v <= 9; v++) if (ok(g, i, v)) c++; if (c < bc) { bc = c; best = i; if (c < 2) break; } }
-    if (best < 0) return 1; if (bc === 0) return 0;
-    let n = 0; for (let v = 1; v <= 9 && n < lim; v++) if (ok(g, best, v)) { g[best] = v; n += count(g, lim - n); g[best] = 0; }
-    return n;
-  }
-  /* ---------- Avaliador lógico: resolve como uma pessoa e diz que técnicas foram precisas ----------
-     1 = só casas óbvias (sozinhos e escondidos); 2 = candidatos alinhados, pares e trios;
-     3 = asa-X, peixe-espada e asa-XY; 4 = nem isso chega (precisa de técnicas mais duras). */
-  const BIT = v => 1 << v, ALL = 0x3FE;
-  const pc = m => { let c = 0; while (m) { m &= m - 1; c++; } return c; };
-  const digitsOf = m => { const r = []; for (let v = 1; v <= 9; v++) if (m & BIT(v)) r.push(v); return r; };
-  const ROWS = UNITS.filter((_, k) => k % 3 === 0), COLS = UNITS.filter((_, k) => k % 3 === 1), BOXES = UNITS.filter((_, k) => k % 3 === 2);
-  function rate(puzzle) {
-    const g = puzzle.slice(), cand = Array(81).fill(0);
-    for (let i = 0; i < 81; i++) if (!g[i]) { let m = ALL; for (const p of PEERS[i]) if (g[p]) m &= ~BIT(g[p]); cand[i] = m; }
-    const place = (i, v) => { g[i] = v; cand[i] = 0; for (const p of PEERS[i]) cand[p] &= ~BIT(v); };
-    const elim = (cells, mask) => { let ch = false; for (const i of cells) if (!g[i] && (cand[i] & mask)) { cand[i] &= ~mask; ch = true; } return ch; };
-    const singles = () => {
-      for (let i = 0; i < 81; i++) if (!g[i]) { if (!cand[i]) return -1; if (pc(cand[i]) === 1) { place(i, digitsOf(cand[i])[0]); return 1; } }
-      for (const u of UNITS) for (let v = 1; v <= 9; v++) {
-        let at = -1, n = 0, done = false;
-        for (const i of u) { if (g[i] === v) { done = true; break; } if (cand[i] & BIT(v)) { n++; at = i; } }
-        if (!done && n === 1) { place(at, v); return 1; }
-        if (!done && n === 0) return -1;
-      }
-      return 0;
-    };
-    const level2 = () => {
-      /* candidatos alinhados: dentro de um bloco só numa linha/coluna, ou numa linha/coluna só dentro de um bloco */
-      for (const a of UNITS) for (const b of UNITS) {
-        if (a === b) continue;
-        const inter = a.filter(i => b.includes(i)); if (inter.length !== 3) continue;
-        for (let v = 1; v <= 9; v++) {
-          const inA = a.filter(i => !g[i] && cand[i] & BIT(v));
-          if (inA.length && inA.every(i => inter.includes(i)) && elim(b.filter(i => !inter.includes(i)), BIT(v))) return 1;
-        }
-      }
-      /* pares e trios nus e escondidos */
-      for (const u of UNITS) {
-        const open = u.filter(i => !g[i]);
-        for (const size of [2, 3]) {
-          const combos = [];
-          const pick = (s, acc) => { if (acc.length === size) { combos.push(acc.slice()); return; } for (let k = s; k < open.length; k++) { acc.push(open[k]); pick(k + 1, acc); acc.pop(); } };
-          pick(0, []);
-          for (const cset of combos) {
-            const m = cset.reduce((x, i) => x | cand[i], 0);
-            if (pc(m) === size && elim(open.filter(i => !cset.includes(i)), m)) return 1;
-          }
-          const ds = [1, 2, 3, 4, 5, 6, 7, 8, 9].filter(v => !u.some(i => g[i] === v));
-          const dcombos = [];
-          const pickd = (s, acc) => { if (acc.length === size) { dcombos.push(acc.slice()); return; } for (let k = s; k < ds.length; k++) { acc.push(ds[k]); pickd(k + 1, acc); acc.pop(); } };
-          pickd(0, []);
-          for (const dset of dcombos) {
-            const dm = dset.reduce((x, v) => x | BIT(v), 0);
-            const cells = open.filter(i => cand[i] & dm);
-            if (cells.length === size && cells.some(i => cand[i] & ~dm)) { cells.forEach(i => { cand[i] &= dm; }); return 1; }
-          }
-        }
-      }
-      return 0;
-    };
-    const fish = (size) => {
-      for (const [base, cover] of [[ROWS, COLS], [COLS, ROWS]]) for (let v = 1; v <= 9; v++) {
-        const lines = base.map(u => u.filter(i => !g[i] && cand[i] & BIT(v)));
-        const idx = lines.map((l, k) => k).filter(k => lines[k].length >= 2 && lines[k].length <= size);
-        const pos = l => cover.findIndex(c => c.includes(l));
-        const go = (s, acc) => {
-          if (acc.length === size) {
-            const covers = new Set(); acc.forEach(k => lines[k].forEach(i => covers.add(pos(i))));
-            if (covers.size !== size) return 0;
-            const inBase = new Set(); acc.forEach(k => base[k].forEach(i => inBase.add(i)));
-            for (const c of covers) if (elim(cover[c].filter(i => !inBase.has(i)), BIT(v))) return 1;
-            return 0;
-          }
-          for (let k = s; k < idx.length; k++) { acc.push(idx[k]); if (go(k + 1, acc)) return 1; acc.pop(); }
-          return 0;
-        };
-        if (go(0, [])) return 1;
-      }
-      return 0;
-    };
-    const xyWing = () => {
-      const bi = [...Array(81).keys()].filter(i => !g[i] && pc(cand[i]) === 2);
-      for (const p of bi) for (const a of bi) for (const b of bi) {
-        if (a === p || b === p || a >= b || !PEERS[p].includes(a) || !PEERS[p].includes(b)) continue;
-        const [x, y] = digitsOf(cand[p]);
-        const ma = cand[a], mb = cand[b];
-        for (const [u, w] of [[x, y], [y, x]]) {
-          if (!(ma & BIT(u)) || ma === cand[p] || !(mb & BIT(w)) || mb === cand[p]) continue;
-          const za = ma & ~BIT(u), zb = mb & ~BIT(w);
-          if (za !== zb || pc(za) !== 1) continue;
-          if (elim(PEERS[a].filter(i => i !== b && PEERS[b].includes(i)), za)) return 1;
-        }
-      }
-      return 0;
-    };
-    let level = 1;
-    for (let guard = 0; guard < 2000; guard++) {
-      if (g.every(Boolean)) return level;
-      const s = singles(); if (s < 0) return 9; if (s) continue;
-      if (level2()) { level = Math.max(level, 2); continue; }
-      if (fish(2) || fish(3) || xyWing()) { level = Math.max(level, 3); continue; }
-      return 4;
-    }
-    return 4;
-  }
-
-  /* Resolve um tabuleiro (casa com menos hipóteses primeiro). */
-  function solve(p) {
-    const g = p.slice();
-    const rec = () => {
-      let best = -1, bc = 10;
-      for (let i = 0; i < 81; i++) if (!g[i]) { let c = 0; for (let v = 1; v <= 9; v++) if (ok(g, i, v)) c++; if (c < bc) { bc = c; best = i; if (c < 2) break; } }
-      if (best < 0) return true; if (!bc) return false;
-      for (let v = 1; v <= 9; v++) if (ok(g, best, v)) { g[best] = v; if (rec()) return true; g[best] = 0; }
-      return false;
-    };
-    return rec() ? g : null;
-  }
-  /* Tabuleiro no link do duelo: os números dados, e cada sequência de casas vazias numa letra (a = 1, b = 2…). */
-  function packBoard(p) {
-    let out = "", z = 0;
-    const flush = () => { while (z > 0) { const k = Math.min(26, z); out += String.fromCharCode(96 + k); z -= k; } };
-    for (const v of p) { if (v) { flush(); out += v; } else z++; }
-    flush(); return out;
-  }
-  function unpackBoard(str) {
-    if (typeof str !== "string" || !/^[1-9a-z]+$/.test(str)) return null;
-    const out = [];
-    for (const ch of str) { if (ch >= "a") for (let k = 0; k < ch.charCodeAt(0) - 96; k++) out.push(0); else out.push(+ch); }
-    return out.length === 81 ? out : null;
-  }
-
-  function attempt(diff, rnd) {
-    const sol = Array(81).fill(0); fill(sol, rnd);
-    const g = sol.slice(); let givens = 81;
-    for (const i of shuffle([...Array(81).keys()], rnd)) {
-      if (givens <= GIVENS[diff]) break;
-      const v = g[i]; g[i] = 0;
-      if (count(g.slice(), 2) !== 1) g[i] = v; else givens--;
-    }
-    return { puzzle: g, solution: sol, level: rate(g) };
-  }
-  /* Gera até encontrar um puzzle que peça as técnicas certas (com limite de tempo, por segurança).
-     Com semente (desafio do dia) não há limite de tempo: o resultado tem de ser igual em qualquer aparelho. */
-  function generate(diff, rnd) {
-    const [lo, hi] = LEVEL[diff] || [1, 4], t0 = Date.now();
-    let best = null;
-    for (let k = 0; k < 400; k++) {
-      const a = attempt(diff, rnd);
-      if (a.level >= lo && a.level <= hi) return a;
-      if (!best || Math.abs(a.level - lo) < Math.abs(best.level - lo)) best = a;
-      if (!rnd && Date.now() - t0 > 2500) break;
-    }
-    return best;
-  }
-
-  /* ---------- Pontuação ---------- */
-  function score(s) {
-    const base = BASE[s.diff];
-    const tPen = Math.round(s.time * base / (SPAN[s.diff] || 2400));   /* perde a base toda em 20, 40 ou 60 min */
-    const ePen = Math.round(s.errors * base * 0.05);
-    const hPen = Math.round(s.hints * base * 0.10);
-    const total = Math.max(Math.round(base * 0.1), base - tPen - ePen - hPen);
-    return { base, tPen, ePen, hPen, total };
-  }
+  /* Gerador, avaliador e pontuação em js/logic/sudoku.js (o servidor usa o mesmo código, Fase 8). */
+  const { BASE, PEERS, unitsOf, rowOf, colOf, count, solve, generate, score, packBoard, unpackBoard } = SalaLogica.sudoku;
 
   /* ---------- Estado ---------- */
   let S = null, els = null, hist = [], anims = {}, isDaily = false, duelD = null;
@@ -225,7 +41,7 @@
     diff = duelD ? duelD.d : isDaily ? DAILY_DIFF : diff || (S && S.diff) || "medium";
     const ds = daily.today(), dD = duelD, daily_ = isDaily;
     const zero = Array(81).fill(0);
-    const ph = { diff, puzzle: zero.slice(), solution: zero.slice(), vals: zero.slice(), notes: zero.slice(), sel: -1, errors: 0, hints: 0, time: 0, done: false, noteMode: false, pending: true };
+    const ph = { diff, puzzle: zero.slice(), solution: zero.slice(), vals: zero.slice(), notes: zero.slice(), sel: -1, errors: 0, hints: 0, time: 0, done: false, noteMode: false, pending: true, log: [] };
     if (dD) ph.bid = dD.bid;
     else if (daily_) { ph.daily = ds; if (practice) ph.practice = true; }
     S = ph; hist = []; anims = {};
@@ -233,14 +49,15 @@
     if (els) { msg("A preparar o tabuleiro…"); syncDiff(); render(); }
     const build = () => {
       if (id !== genId || S !== ph) return;
-      let puzzle, solution, seed = null;
+      let puzzle, solution, seed = null, k = null;
       const dseed = dD && Sala.duelCode.seedNum(dD.b) >= 0 ? dD.b : null;
       if (dD && !dseed) { puzzle = unpackBoard(dD.b); solution = solve(puzzle); }
-      else if (daily_ && !dD) ({ puzzle, solution } = generate(diff, daily.rng("sudoku", ds)));
-      else { seed = dseed || Sala.duel.newSeed(); ({ puzzle, solution } = generate(diff, Sala.rng("sudoku:" + seed))); }
+      else if (daily_ && !dD) ({ puzzle, solution, k } = generate(diff, daily.rng("sudoku", ds)));
+      else { seed = dseed || Sala.duel.newSeed(); ({ puzzle, solution, k } = generate(diff, Sala.rng("sudoku:" + seed))); }
       if (id !== genId || S !== ph) return;
       Object.assign(ph, { puzzle, solution, vals: puzzle.slice(), sel: puzzle.indexOf(0) });
       if (seed) ph.seed = seed;
+      if (k != null) ph.k = k; /* tentativa do gerador: o servidor reconstrói a solução com ela (ranking online) */
       delete ph.pending;
       save();
       if (els) { msg(dD ? "Mesmo tabuleiro de " + dD.n + ". Os pontos contam como num jogo normal." : daily_ ? dailyMsg() : ""); syncDiff(); render(); animateBoardIn(); }
@@ -409,6 +226,9 @@
   const unitDone = u => u.every(i => S.vals[i] === S.solution[i]);
 
   /* ---------- Ações ---------- */
+  /* Registo das jogadas para o ranking online (Fase 8): [casa, valor, tipo], tipo 0 = escrever ou apagar,
+     1 = pista, 2 = desfazer. Só existe nos jogos começados a partir desta versão. */
+  const rec = (i, v, f) => { if (S.log) S.log.push([i, v, f]); };
   function push() { hist.push({ vals: S.vals.slice(), notes: S.notes.slice() }); if (hist.length > 300) hist.shift(); }
   function input(v) {
     if (S.pending) return;
@@ -417,10 +237,10 @@
       if (S.vals[i]) return;
       push(); S.notes[i] ^= (1 << v); sound.note();
     } else if (S.vals[i] === v) {
-      push(); S.vals[i] = 0; sound.tap();
+      push(); S.vals[i] = 0; rec(i, 0, 0); sound.tap();
     } else {
       const before = unitsOf(i).map(unitDone);
-      push(); S.vals[i] = v; S.notes[i] = 0;
+      push(); S.vals[i] = v; S.notes[i] = 0; rec(i, v, 0);
       if (v !== S.solution[i]) {
         S.errors++; sound.error(); vibrate(60); anim(i, "pop");
         if (!(S.errors % 3)) toast(S.errors + " erros: cada um custa pontos.");
@@ -440,11 +260,13 @@
   function erase() {
     if (S.pending) return;
     const i = S.sel; if (i < 0 || S.puzzle[i] || S.done || (!S.vals[i] && !S.notes[i])) return;
+    if (S.vals[i]) rec(i, 0, 0);
     push(); S.vals[i] = 0; S.notes[i] = 0; sound.tap(); save(); render();
   }
   function undo() {
     if (S.done || S.pending) return;
     const h = hist.pop(); if (!h) { toast("Nada para desfazer."); return; }
+    h.vals.forEach((v, i) => { if (v !== S.vals[i]) rec(i, v, 2); });
     S.vals = h.vals; S.notes = h.notes; sound.tap(); save(); render();
   }
   function hint() {
@@ -454,7 +276,7 @@
       const cand = []; for (let k = 0; k < 81; k++) if (S.vals[k] !== S.solution[k]) cand.push(k);
       if (!cand.length) return; i = cand[Math.random() * cand.length | 0];
     }
-    push(); S.vals[i] = S.solution[i]; S.notes[i] = 0; S.sel = i; S.hints++;
+    push(); S.vals[i] = S.solution[i]; S.notes[i] = 0; S.sel = i; S.hints++; rec(i, S.solution[i], 1);
     for (const p of PEERS[i]) S.notes[p] &= ~(1 << S.solution[i]);
     sound.place(); anim(i, "pop");
     msg("Pista usada: custa " + fmtNum(BASE[S.diff] * 0.1) + " pontos.");
@@ -475,6 +297,7 @@
         game: "sudoku", diff: S.diff, diffLabel: dl, title: "Sudoku resolvido", score: sc.total, time: S.time,
         breakdown: [["Base (" + dl + ")", fmtNum(sc.base)], ["Tempo " + fmtTime(S.time), "−" + fmtNum(sc.tPen)], ["Erros × " + S.errors, "−" + fmtNum(sc.ePen)], ["Pistas × " + S.hints, "−" + fmtNum(sc.hPen)]],
         extra: { errors: S.errors, hints: S.hints }, daily: dd, practice, duel: dD,
+        online: S.log && S.k != null && !dD ? { k: S.k, seed: S.seed || null, puzzle: S.puzzle.join(""), log: S.log } : null,
         challenge: { d: S.diff, b: S.seed || packBoard(S.puzzle) },
         share: { lines: ["Tempo " + fmtTime(S.time), S.errors + (S.errors === 1 ? " erro" : " erros") + " · " + S.hints + (S.hints === 1 ? " pista" : " pistas")] },
         newLabel: dd ? "Jogo normal" : "Novo jogo",
