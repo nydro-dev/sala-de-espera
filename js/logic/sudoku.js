@@ -194,19 +194,34 @@
      verificar a unicidade e avaliar as técnicas não gastam nenhum. Por isso a solução da tentativa k
      obtém-se repetindo só essas duas coisas, em menos de um milissegundo por tentativa (escolher as
      casas dadas custaria até ~100 ms, demais para o plano gratuito do servidor). */
-  function solucao(rnd, k) {
-    let sol = null;
+  function solucao(rnd, k) { return tentativa(rnd, k).sol; }
+  /* Solução e ordem pela qual o gerador tentou tirar as casas, na tentativa k. */
+  function tentativa(rnd, k) {
+    let sol = null, ordem = null;
     for (let j = 0; j <= k; j++) {
       sol = Array(81).fill(0); fill(sol, rnd);
-      if (j < k) shuffle([...Array(81).keys()], rnd);
+      ordem = shuffle([...Array(81).keys()], rnd);
     }
-    return sol;
+    return { sol, ordem };
+  }
+  /* Casas dadas que cada dificuldade pode ter (medido em 600 tabuleiros: o gerador chega quase sempre ao
+     objetivo; o Diabólico, que pede 17, fica entre 22 e 28). */
+  const FAIXA = { beginner: [46, 48], easy: [40, 42], medium: [32, 34], hard: [26, 29], evil: [17, 30] };
+  /* Confirma que as casas dadas são da dificuldade dita, sem refazer o gerador (que seria caro): o número
+     de casas dadas e, no Difícil e no Diabólico, as técnicas exigidas. Limitação aceite: um Difícil que peça
+     asa-X (cerca de 1 em 4) com 26 casas dadas também passa por Diabólico, se alguém mexer no pedido à mão;
+     distinguir esses casos custava até 60 ms de CPU por pedido, demais para o plano gratuito. */
+  function confirmarDificuldade(diff, puzzle) {
+    const n = puzzle.filter(Boolean).length, [lo, hi] = FAIXA[diff];
+    if (n < lo || n > hi) return false;
+    if (diff === "hard" || diff === "evil") { const lv = rate(puzzle); if (lv < LEVEL[diff][0] || lv > LEVEL[diff][1]) return false; }
+    return true;
   }
   /* Repete as jogadas registadas (S.log) a partir das casas dadas. Cada registo é [casa, valor, tipo]:
      tipo 0 = escrever (valor 0 = apagar), 1 = pista, 2 = desfazer (repõe o valor anterior).
      Conta os erros e as pistas como o jogo os conta e confirma que o tabuleiro acaba resolvido.
-     As casas dadas vêm do aparelho: o servidor confirma que batem certo com a solução e que não são
-     mais fáceis do que a dificuldade pede, mas não as volta a escolher (ver solucao). */
+     As casas dadas vêm do aparelho: o servidor confirma que batem certo com a solução e que são da
+     dificuldade dita (confirmarDificuldade), mas não as volta a escolher (ver solucao). */
   function repetir(o) {
     const { diff, k, log } = o;
     if (!BASE[diff]) return { erro: "dificuldade" };
@@ -214,7 +229,7 @@
     const sol = solucao(o.rnd, k);
     const puzzle = String(o.puzzle || "").split("").map(Number);
     if (puzzle.length !== 81 || puzzle.some((v, i) => !(v >= 0 && v <= 9) || (v && v !== sol[i]))) return { erro: "tabuleiro" };
-    if (puzzle.filter(Boolean).length < GIVENS[diff]) return { erro: "tabuleiro" };
+    if (!confirmarDificuldade(diff, puzzle)) return { erro: "dificuldade" };
     if (!Array.isArray(log) || log.length > 5000) return { erro: "jogadas" };
     const vals = puzzle.slice(); let errors = 0, hints = 0;
     for (const e of log) {
@@ -229,5 +244,5 @@
     return { ok: true, errors, hints };
   }
 
-  L.sudoku = { BASE, SPAN, GIVENS, LEVEL, PEERS, UNITS, unitsOf, rowOf, colOf, boxOf, count, rate, solve, attempt, generate, score, packBoard, unpackBoard, solucao, repetir };
+  L.sudoku = { BASE, SPAN, GIVENS, LEVEL, PEERS, UNITS, unitsOf, rowOf, colOf, boxOf, count, rate, solve, attempt, generate, score, packBoard, unpackBoard, solucao, tentativa, confirmarDificuldade, repetir };
 })(typeof globalThis !== "undefined" ? globalThis : self);
