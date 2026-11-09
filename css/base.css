@@ -185,13 +185,16 @@ h1,h2,h3{margin:0;line-height:1.15}
 }
 
 /* ---------- Modal ---------- */
-dialog{border:0;padding:0;background:transparent;color:var(--ink);max-width:min(520px,calc(100vw - 24px));width:100%;max-height:calc(100dvh - 24px)}
+dialog{border:0;padding:0;background:transparent;color:var(--ink);max-width:min(520px,calc(100vw - 24px));width:100%;max-height:calc(100dvh - 24px);overflow:hidden;overscroll-behavior:contain}
+/* Com uma janela aberta, a página por trás não desliza (no iPhone, o dedo arrastava o menu em vez da janela). */
+html.modal-lock,html.modal-lock body{overflow:hidden;overscroll-behavior:none}
 dialog::backdrop{background:rgba(8,12,24,.55)}
 .modal-card{background:var(--surface);border-radius:18px;border:1px solid var(--line);box-shadow:0 20px 50px rgba(0,0,0,.3);display:flex;flex-direction:column;max-height:calc(100dvh - 24px)}
 .modal-head{display:flex;align-items:center;gap:10px;padding:16px 16px 8px 20px}
 .modal-head h3{flex:1;font-size:1.2rem;font-weight:900}
 .modal-head .icon-btn{border-color:transparent;background:transparent}
-.modal-body{padding:4px 20px 12px;overflow:auto}
+/* Só o corpo da janela desliza (min-height:0 deixa-o encolher dentro do cartão); o scroll não passa para a página. */
+.modal-body{padding:4px 20px 12px;overflow-y:auto;min-height:0;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 .modal-foot{display:flex;gap:8px;padding:8px 20px 20px;flex-wrap:wrap}
 .modal-foot:empty{display:none}
 .modal-foot .btn{flex:1}

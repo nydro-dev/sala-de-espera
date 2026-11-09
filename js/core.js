@@ -144,16 +144,20 @@
       });
       onCloseCb = onClose || null;
       try { dlg.showModal(); } catch (e) { dlg.setAttribute("open", ""); }
+      document.documentElement.classList.add("modal-lock");
       const first = f.querySelector(".btn.primary") || b.querySelector("input,button") || dlg.querySelector("[data-close]");
       if (first && !("ontouchstart" in window)) first.focus();
     },
     close(silent) {
       if (!modal.isOpen) return;
       try { dlg.close(); } catch (e) { dlg.removeAttribute("open"); }
+      document.documentElement.classList.remove("modal-lock");
       const cb = onCloseCb; onCloseCb = null;
       if (cb && !silent) cb();
     }
   };
+  /* Fechada com Esc (o browser fecha-a sem passar por modal.close): solta a página na mesma. */
+  dlg.addEventListener("close", () => document.documentElement.classList.remove("modal-lock"));
   dlg.addEventListener("click", e => {
     if (e.target.closest("[data-close]")) modal.close();
     else if (e.target === dlg) modal.close(); /* clique fora do cartão */
