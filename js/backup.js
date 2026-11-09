@@ -81,7 +81,12 @@
   /* Substitui o progresso deste aparelho, guardando antes uma cópia para desfazer. */
   function apply(o) {
     try { localStorage.setItem(BAK, JSON.stringify({ t: Date.now(), d: snapshot() })); } catch (e) { /* sem espaço para a cópia: importa na mesma */ }
+    /* A sessão do ranking online deste aparelho fica (Fase 8.1): importar progresso antigo não deve tirar ninguém da conta. */
+    const keep = {}; let on = null;
+    try { on = JSON.parse(localStorage.getItem(PFX + "online") || "null"); } catch (e) {}
+    if (on && on.sessao) ["online", "online:fila", "online:erro"].forEach(k => { const v = localStorage.getItem(PFX + k); if (v != null) keep[PFX + k] = v; });
     if (!restore(o.d)) { toast("Não foi possível guardar o progresso neste aparelho."); return false; }
+    if (on && on.sessao) { ["online", "online:fila", "online:erro"].forEach(k => localStorage.removeItem(PFX + k)); for (const k in keep) localStorage.setItem(k, keep[k]); }
     Sala.importing = true; /* nada em memória volta a escrever por cima */
     history.replaceState(null, "", location.pathname + location.search + "#imp-ok");
     location.reload();

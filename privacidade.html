@@ -24,7 +24,7 @@
 <main class="pv">
   <a class="btn pv-back" href="./">← Voltar aos jogos</a>
   <h1>Privacidade</h1>
-  <p class="meta">Atualizada a 31 de outubro de 2026 (ranking online).</p>
+  <p class="meta">Atualizada a 9 de novembro de 2026 (contas com palavra-passe).</p>
 
   <p>A Sala de Espera é um projeto pessoal de jogos curtos. Foi feita para se jogar sem conta, sem publicidade e sem recolher dados sobre quem joga. Há um ranking online opcional, que só funciona se o ligares. Esta página explica, sem letra miudinha, o que fica no teu aparelho e o pouco que chega ao servidor.</p>
 
@@ -44,15 +44,15 @@
   </ul>
 
   <h2>Ranking online (só se o ligares)</h2>
-  <p>Vem desligado. Liga-se nas Definições, com uma alcunha e a confirmação de que tens 13 anos ou mais (a idade a partir da qual, em Portugal, se pode dar este consentimento sem os pais). Desligado, nada do que está descrito aqui acontece.</p>
+  <p>Vem desligado. Liga-se nas Definições, com uma alcunha, uma palavra-passe e a confirmação de que tens 13 anos ou mais (a idade a partir da qual, em Portugal, se pode dar este consentimento sem os pais). Desligado, nada do que está descrito aqui acontece.</p>
   <ul>
-    <li><b>O que o servidor guarda:</b> a alcunha que escolheres; um resumo (hash) do código de recuperação, que não permite saber o código; e os teus resultados (jogo, dificuldade, pontos, tempo, data e qual o tabuleiro, para o mesmo não contar duas vezes). Nada de email, nome verdadeiro, IP, aparelho ou localização.</li>
+    <li><b>O que o servidor guarda:</b> a alcunha que escolheres (é única, por isso é também o nome com que entras); um resumo da palavra-passe (PBKDF2, com sal), que não permite saber a palavra-passe; um resumo do código de reserva; um resumo de cada sessão aberta (uma por aparelho onde entraste), com a data do último uso; durante uma hora, as tentativas falhadas de entrar, por alcunha, para travar quem tente adivinhar palavras-passe; e os teus resultados (jogo, dificuldade, pontos, tempo, data e qual o tabuleiro, para o mesmo não contar duas vezes). Nada de email, nome verdadeiro, IP, aparelho ou localização.</li>
     <li><b>O que vai em cada envio:</b> as jogadas do jogo acabado, para o servidor as repetir e confirmar os pontos. Servem só para essa verificação e não ficam guardadas.</li>
     <li><b>Quem vê:</b> a alcunha, os pontos e os tempos aparecem no ranking a quem o abrir. Por isso, não uses o teu nome completo nem nada que te identifique.</li>
     <li><b>Onde:</b> numa base de dados da Cloudflare, na Europa ocidental, a mesma empresa que aloja a app.</li>
-    <li><b>Durante quanto tempo:</b> os desafios do dia e a lista de tabuleiros enviados, 90 dias; o melhor resultado de cada jogo, enquanto a conta existir. Uma conta sem atividade durante 12 meses é apagada com tudo o que tem.</li>
-    <li><b>O código de recuperação</b> é a chave da conta: fica no teu aparelho (e no código de "Levar o progresso") e mais ninguém o tem. Quem o tiver entra na tua conta; quem o perder perde a conta, porque não há email para o recuperar.</li>
-    <li><b>Apagar:</b> nas Definições, "Apagar conta" apaga do servidor, na hora, a alcunha e todos os resultados. "Desligar" só deixa de enviar a partir daquele aparelho.</li>
+    <li><b>Durante quanto tempo:</b> os desafios do dia e a lista de tabuleiros enviados, 90 dias; o melhor resultado de cada jogo, enquanto a conta existir; uma sessão, até 12 meses sem uso ou até a terminares. Uma conta sem atividade durante 12 meses é apagada com tudo o que tem.</li>
+    <li><b>Palavra-passe e código de reserva:</b> a palavra-passe só tu a sabes (o gestor de palavras-passe do teu aparelho pode guardá-la). O código de reserva aparece uma vez, ao criar a conta, e serve para definir uma palavra-passe nova se a esqueceres; usado, deixa de valer e recebes outro. Não há email: quem perder a palavra-passe e o código perde a conta. No aparelho fica só a alcunha e um código de sessão (que também vai no código de "Levar o progresso"); "Terminar sessão" apaga-o.</li>
+    <li><b>Apagar:</b> nas Definições, "Apagar conta" (pede a palavra-passe) apaga do servidor, na hora, a alcunha, as sessões e todos os resultados. "Terminar sessão" só deixa de enviar a partir daquele aparelho, ou de todos.</li>
   </ul>
 
   <h2>O que não há</h2>
@@ -63,7 +63,7 @@
   </ul>
 
   <h2>Contacto</h2>
-  <p>Dúvidas ou pedidos sobre privacidade: abre um pedido ("issue") no repositório público do projeto, <a href="https://github.com/nydro-dev/sala-de-espera">github.com/nydro-dev/sala-de-espera</a>. Nunca escrevas lá o teu código de recuperação: para apagar a conta basta o botão nas Definições.</p>
+  <p>Dúvidas ou pedidos sobre privacidade: abre um pedido ("issue") no repositório público do projeto, <a href="https://github.com/nydro-dev/sala-de-espera">github.com/nydro-dev/sala-de-espera</a>. Nunca escrevas lá a tua palavra-passe nem o código de reserva: para apagar a conta basta o botão nas Definições.</p>
 </main>
 </div>
 <script>

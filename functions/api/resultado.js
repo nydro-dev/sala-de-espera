@@ -1,16 +1,17 @@
 /* Envio de um resultado para o ranking online (Fase 8). O servidor repete as jogadas e calcula os pontos
    (server/lib/validar.js); o desafio do dia conta uma só vez por conta, e o mesmo tabuleiro também. */
-import { json, falha, hoje, agora, corpo, contaDoPedido, limpar } from "../../server/lib/comum.js";
+import { json, falha, hoje, agora, corpo, contaDoPedido, limpar, SEM_SESSAO } from "../../server/lib/comum.js";
 import { validar } from "../../server/lib/validar.js";
 
 const POR_HORA = 120; /* resultados por conta e por hora: mais do que isto não é uma pessoa a jogar */
 const ERROS = {
   tempo: "O tempo deste jogo não é possível.", dia: "Este desafio já não é de hoje.", "por acabar": "O jogo não está acabado.",
-  semente: "Este jogo é de uma versão antiga da app.", jogo: "Este jogo não tem ranking online."
+  semente: "Este jogo é de uma versão antiga da app.", jogo: "Este jogo não tem ranking online.",
+  palavra: "Uma das palavras não está na lista do jogo.", tentativas: "As tentativas não batem certo com a palavra do dia."
 };
 
 export async function onRequestPost({ request, env, waitUntil }) {
-  const c = await contaDoPedido(request, env); if (!c) return falha(401, "Código desconhecido.");
+  const c = await contaDoPedido(request, env); if (!c) return falha(401, SEM_SESSAO);
   const b = await corpo(request); if (!b) return falha(400, "Pedido inválido.");
   const v = validar(b, hoje());
   if (v.erro) return falha(422, ERROS[v.erro] || "O servidor não conseguiu confirmar este jogo (" + v.erro + ").");

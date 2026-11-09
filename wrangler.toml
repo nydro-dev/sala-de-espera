@@ -8,3 +8,8 @@ compatibility_date = "2026-10-01"
 binding = "DB"
 database_name = "sala-de-espera"
 database_id = "672e2377-3037-47d4-af60-8bc1bf31aa42"
+
+# Ranking online, Fase 8.1: iterações do PBKDF2 das palavras-passe (máximo da Cloudflare: 100 000).
+# O plano gratuito dá ~10 ms de CPU por pedido: o valor fica o maior que caiba, medido no ar (ver o PLANO).
+[vars]
+PBKDF2_ITER = "60000"
