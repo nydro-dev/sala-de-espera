@@ -122,13 +122,12 @@
     return svg(s);
   }
 
-  /* Pastel de Nata: dois pastéis, vapor e canela a cair (desenho de js/games/nata.js). */
+  /* Pastel de Nata: dois pastéis e vapor (desenho de js/games/nata.js). */
   function nata() {
     const p = Sala.nataArt; if (!p) return svg("");
     const inner = (id, x, y, w) => p(id).replace("<svg ", '<svg x="' + x + '" y="' + y + '" width="' + w + '" height="' + w + '" ');
-    let s = inner("ntm1", 14, 30, 74) + inner("ntm2", 62, 14, 92);
-    s += '<path d="M96 12c-4-5 4-7 0-12M110 10c-4-5 4-7 0-12M124 12c-4-5 4-7 0-12" stroke="var(--ink)" stroke-width="2" fill="none" stroke-linecap="round" opacity=".3" transform="translate(0 4)"/>';
-    s += [[30, 20], [38, 14], [46, 22], [24, 12], [52, 10]].map(([x, y]) => '<circle cx="' + x + '" cy="' + y + '" r="1.6" fill="#8E561C" opacity=".7"/>').join("");
+    let s = inner("ntm1", 8, 34, 70) + inner("ntm2", 56, 22, 92);
+    s += '<path d="M88 20c-4-5 4-7 0-12M102 18c-4-5 4-7 0-12M116 20c-4-5 4-7 0-12" stroke="var(--ink)" stroke-width="2" fill="none" stroke-linecap="round" opacity=".3"/>';
     return svg(s);
   }
 

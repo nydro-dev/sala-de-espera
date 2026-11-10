@@ -15,30 +15,63 @@
   function save() { if (S) { store.set(KEY, S); lastSave = now(); } }
 
   /* ---------- Desenhos (originais) ---------- */
-  /* Pastel visto de cima: massa folhada canelada, creme e manchas queimadas. */
+  /* Pastel de nata em 3/4: copinho de massa folhada com camadas e creme com manchas de caramelo. */
   function pastel(id) {
-    let rim = "";
-    for (let i = 0; i < 18; i++) { const a = i / 18 * Math.PI * 2, x = 50 + Math.cos(a) * 41, y = 50 + Math.sin(a) * 41; rim += '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="8" fill="#C98A3A"/>'; }
-    /* Manchas de caramelo: borrões irregulares, mais escuros no meio. */
-    const blob = (x, y, r, k) => {
-      /* Borrão arredondado: pontos à volta, ligados por curvas que passam pelo meio de cada lado. */
-      const P = []; for (let j = 0; j < 7; j++) { const a = j / 7 * Math.PI * 2 + k, rr = r * (.72 + .4 * Math.abs(Math.sin(k * 3 + j * 1.7))); P.push([x + Math.cos(a) * rr, y + Math.sin(a) * rr * .8]); }
-      const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], f = v => v.toFixed(1);
-      let m = mid(P[6], P[0]), d = "M" + f(m[0]) + " " + f(m[1]);
-      for (let j = 0; j < 7; j++) { const n = mid(P[j], P[(j + 1) % 7]); d += "Q" + f(P[j][0]) + " " + f(P[j][1]) + " " + f(n[0]) + " " + f(n[1]); }
+    const f = v => v.toFixed(1);
+    /* Elipse superior (boca do copinho) e inferior (fundo) */
+    const T = { cx: 50, cy: 40, rx: 46, ry: 20 }, B = { cx: 50, cy: 73, rx: 37, ry: 13 };
+    const lerp = (a, b, t) => a + (b - a) * t;
+    /* Parede: lado esquerdo desce, fundo em arco, lado direito sobe, boca em arco por trás */
+    const wall = "M" + f(T.cx - T.rx) + " " + T.cy +
+      "C" + f(T.cx - T.rx + 1) + " " + f(T.cy + 14) + " " + f(B.cx - B.rx - 2) + " " + f(B.cy - 8) + " " + f(B.cx - B.rx) + " " + B.cy +
+      "A" + B.rx + " " + B.ry + " 0 0 0 " + f(B.cx + B.rx) + " " + B.cy +
+      "C" + f(B.cx + B.rx + 2) + " " + f(B.cy - 8) + " " + f(T.cx + T.rx - 1) + " " + f(T.cy + 14) + " " + f(T.cx + T.rx) + " " + T.cy +
+      "A" + T.rx + " " + T.ry + " 0 0 1 " + f(T.cx - T.rx) + " " + T.cy + "Z";
+    /* Camadas da massa folhada: arcos da metade da frente, ligeiramente ondulados */
+    let layers = "";
+    for (let k = 1; k <= 5; k++) {
+      const t = k / 6, cy = lerp(T.cy, B.cy, t) + Math.sin(k * 2.1) * 0.8, rx = lerp(T.rx, B.rx, t) - 0.5, ry = lerp(T.ry, B.ry, t);
+      let d = "";
+      for (let j = 0; j <= 24; j++) {
+        const a = Math.PI * j / 24, w = Math.sin(j * .9 + k * 1.7) * 0.45;
+        const x = 50 - Math.cos(a) * rx, y = cy + Math.sin(a) * ry + w;
+        d += (j ? "L" : "M") + f(x) + " " + f(y);
+      }
+      layers += '<path d="' + d + '" fill="none" stroke="' + (k % 2 ? "#8A4E17" : "#F0BC66") + '" stroke-width="' + (k % 2 ? 1.3 : .9) + '" opacity="' + (k % 2 ? .5 : .45) + '" stroke-linecap="round"/>';
+    }
+    /* Borda de cima: anel folhado com lascas */
+    let flakes = "";
+    for (let j = 0; j < 22; j++) {
+      const a = j / 22 * Math.PI * 2, x = T.cx + Math.cos(a) * (T.rx - 3.5), y = T.cy + Math.sin(a) * (T.ry - 1.8);
+      flakes += '<ellipse cx="' + f(x) + '" cy="' + f(y) + '" rx="' + f(3 + (j % 3)) + '" ry="1.6" fill="' + (j % 2 ? "#EDB862" : "#C98132") + '" transform="rotate(' + f(a * 180 / Math.PI + 90) + " " + f(x) + " " + f(y) + ')" opacity=".9"/>';
+    }
+    /* Creme: elipse ligeiramente abaulada */
+    const C = { cx: 50, cy: 39.5, rx: 38, ry: 15.5 };
+    const blob = (x, y, r, k, sy) => {
+      const P = []; for (let j = 0; j < 8; j++) { const a = j / 8 * Math.PI * 2 + k, rr = r * (.68 + .45 * Math.abs(Math.sin(k * 3.3 + j * 1.9))); P.push([x + Math.cos(a) * rr, y + Math.sin(a) * rr * sy]); }
+      const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      let m = mid(P[7], P[0]), d = "M" + f(m[0]) + " " + f(m[1]);
+      for (let j = 0; j < 8; j++) { const n = mid(P[j], P[(j + 1) % 8]); d += "Q" + f(P[j][0]) + " " + f(P[j][1]) + " " + f(n[0]) + " " + f(n[1]); }
       return d + "Z";
     };
-    const spots = [[46, 42, 9, 1], [61, 52, 8, 2], [41, 59, 6, 3], [57, 35, 5, 4], [31, 46, 4, 5], [66, 64, 3.5, 6]]
-      .map(([x, y, r, k]) => '<path d="' + blob(x, y, r * 1.25, k) + '" fill="#B56A22" opacity=".45" filter="url(#' + id + 'b)"/><path d="' + blob(x, y, r * .6, k + 1) + '" fill="#5B2E0E" opacity=".85"/>').join("");
-    return '<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">' +
-      '<defs><radialGradient id="' + id + 'c" cx=".45" cy=".42" r=".6"><stop offset="0" stop-color="#FFE7A0"/><stop offset=".7" stop-color="#F3C25A"/><stop offset="1" stop-color="#D99A35"/></radialGradient><filter id="' + id + 'b" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6"/></filter></defs>' +
-      '<ellipse cx="50" cy="93" rx="36" ry="5" fill="#000" opacity=".12"/>' + rim +
-      '<circle cx="50" cy="50" r="41" fill="#B4742A"/>' +
-      '<circle cx="50" cy="50" r="44.5" fill="none" stroke="#E2A653" stroke-width="1.4" opacity=".8"/>' +
-      '<circle cx="50" cy="50" r="38.5" fill="none" stroke="#8E561C" stroke-width="1.2" opacity=".55"/>' +
-      '<circle cx="50" cy="50" r="35.5" fill="none" stroke="#E2A653" stroke-width="1" opacity=".6"/>' +
-      '<circle cx="50" cy="50" r="32" fill="url(#' + id + 'c)"/>' + spots +
-      '<ellipse cx="40" cy="36" rx="9" ry="4" fill="#FFF6D6" opacity=".55" transform="rotate(-25 40 36)"/></svg>';
+    const S = [[42, 36, 11, 1], [62, 38, 12, 2], [50, 46, 9, 3], [29, 42, 7.5, 4], [73, 44, 7, 5], [55, 29, 6.5, 6], [36, 29, 5.5, 7], [66, 50, 5, 8], [22, 37, 4.5, 9], [40, 50, 4.5, 10], [78, 36, 4, 11]];
+    const spots = S.map(([x, y, r, k]) =>
+      '<path d="' + blob(x, y, r * 1.35, k, .5) + '" fill="#C27A2C" opacity=".55" filter="url(#' + id + 'b)"/>' +
+      '<path d="' + blob(x, y, r * .85, k + .5, .5) + '" fill="#7A3B10" opacity=".9" filter="url(#' + id + 's)"/>' +
+      '<path d="' + blob(x - r * .1, y, r * .42, k + 1, .5) + '" fill="#2E1405" opacity=".9"/>').join("");
+    return '<svg viewBox="0 16 100 76" aria-hidden="true" focusable="false"><defs>' +
+      '<linearGradient id="' + id + 'w" x1="0" x2="1"><stop offset="0" stop-color="#9C5A1C"/><stop offset=".3" stop-color="#D08A38"/><stop offset=".55" stop-color="#E3A24C"/><stop offset="1" stop-color="#94541A"/></linearGradient>' +
+      '<radialGradient id="' + id + 'c" cx=".45" cy=".35" r=".7"><stop offset="0" stop-color="#FFE9A8"/><stop offset=".6" stop-color="#F5C95E"/><stop offset="1" stop-color="#D99A3A"/></radialGradient>' +
+      '<filter id="' + id + 'b" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.8"/></filter>' +
+      '<filter id="' + id + 's" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation=".5"/></filter>' +
+      '<clipPath id="' + id + 'k"><ellipse cx="' + C.cx + '" cy="' + C.cy + '" rx="' + C.rx + '" ry="' + C.ry + '"/></clipPath></defs>' +
+      '<ellipse cx="50" cy="84" rx="40" ry="6" fill="#000" opacity=".14"/>' +
+      '<path d="' + wall + '" fill="url(#' + id + 'w)" stroke="#7A4212" stroke-width="1.2"/>' + layers +
+      '<ellipse cx="' + T.cx + '" cy="' + T.cy + '" rx="' + T.rx + '" ry="' + T.ry + '" fill="#E7A84F" stroke="#9C5A1C" stroke-width="1"/>' + flakes +
+      '<ellipse cx="' + C.cx + '" cy="' + (C.cy + 1) + '" rx="' + (C.rx + 1) + '" ry="' + (C.ry + 1) + '" fill="#9C5A1C" opacity=".5"/>' +
+      '<ellipse cx="' + C.cx + '" cy="' + C.cy + '" rx="' + C.rx + '" ry="' + C.ry + '" fill="url(#' + id + 'c)"/>' +
+      '<g clip-path="url(#' + id + 'k)">' + spots + '</g>' +
+      '<ellipse cx="34" cy="33" rx="7" ry="2" fill="#FFF8E0" opacity=".35" transform="rotate(-8 34 33)"/></svg>';
   }
   /* Ícones dos produtores (28×28, cores do tema). */
   const ICON = {
