@@ -12,7 +12,7 @@ Jogos curtos numa app web instalável (PWA), feita para jogar nos intervalos. Fu
 - **Dobra**: juntar peças iguais, que dobram de valor, em tabuleiros de 3×3, 4×4 e 5×5, com três jogadas para desfazer por jogo.
 - **Cobra** em três velocidades, com ou sem paredes, e uma maçã dourada de vez em quando.
 
-O Blackjack e a Roleta partilham uma banca de fichas virtuais (sem valor real e sem compras), que começa com 1000 fichas. Cada banca, quando fecha, entra no ranking do casino com o maior saldo que atingiu.
+O Blackjack e a Roleta partilham uma banca de fichas virtuais (sem valor real e sem compras), que começa com 1000 fichas. Cada banca, quando fecha, entra no ranking do casino com o maior saldo que atingiu. Sempre que se entra no Blackjack ou na Roleta aparece um aviso: as fichas não valem dinheiro, os jogos de casino podem criar hábito e são recomendados a maiores de 18 anos, com a Linha 1414 do ICAD para quem tenha problemas com o jogo a dinheiro.
 
 Cada jogo tem uma janela "Como jogar", pontuação e um top 10 (por dificuldade, tabuleiro ou modo, consoante o jogo).
 

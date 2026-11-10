@@ -99,7 +99,7 @@
   }
 
   /* ---------- Navegação (#/sudoku, #/minas) ---------- */
-  let active = null, fromMenu = false, passOk = false;
+  let active = null, fromMenu = false, passOk = false, casinoOk = null;
   function go(id) { fromMenu = !!id && !active; location.hash = id ? "#/" + id : ""; }
   Sala.go = go;
   function route() {
@@ -141,6 +141,14 @@
     if (active) { active.unmount(); active = null; }
     const body = { stats: $("g-stats"), board: $("g-board"), controls: $("g-controls") };
     Object.values(body).forEach(n => n.innerHTML = "");
+    /* Casino (Fase 8.2): o aviso aparece a cada entrada; o menu fica por baixo até se carregar em Entrar. */
+    if (g && g.ready && g.rankAs === "casino" && Sala.casino && Sala.casino.warn && casinoOk !== g.id) {
+      $("v-game").hidden = true; $("v-menu").hidden = false; document.title = "Sala de Espera";
+      drawMenu();
+      Sala.casino.warn(() => { casinoOk = g.id; route(); }, () => { if (fromMenu) { fromMenu = false; history.back(); } else go(""); });
+      return;
+    }
+    if (!g || g.rankAs !== "casino") casinoOk = null;
     if (g && g.ready) {
       $("v-menu").hidden = true; $("v-game").hidden = false;
       const t = duelData ? "Duelo · " + g.name : isDaily ? (g.dailyTitle || g.name + " do dia") : g.name;

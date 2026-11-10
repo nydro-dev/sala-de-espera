@@ -247,7 +247,7 @@
       "<li>Se sair o zero, perdem todas as apostas exceto a do próprio zero.</li></ul>" +
       "<h4>Banca e ranking</h4><ul><li>O Blackjack e a Roleta usam a mesma banca, que começa com 1000 fichas virtuais, sem valor real e sem compras.</li>" +
       "<li>Se ficares abaixo de 10 fichas, a banca fecha e começas outra. Também a podes fechar quando quiseres.</li>" +
-      "<li>Cada banca fechada entra no ranking do casino com o maior saldo que atingiu.</li></ul>";
+      "<li>Cada banca fechada entra no ranking do casino com o maior saldo que atingiu.</li></ul>" + C.helpNote;
   }
 
   Sala.registerGame({

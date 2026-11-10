@@ -255,7 +255,7 @@
       "<h4>Regras da mesa</h4><ul><li>Seis baralhos, baralhados de novo quando resta um quarto.</li><li>A banca pede até 17 e fica com qualquer 17, incluindo com ás.</li><li>Blackjack paga 3 para 2; as outras vitórias pagam 1 para 1; empate devolve a aposta. Não há seguro.</li></ul>" +
       "<h4>Banca e ranking</h4><ul><li>O Blackjack e a Roleta usam a mesma banca, que começa com 1000 fichas virtuais, sem valor real e sem compras.</li>" +
       "<li>Se ficares abaixo de 10 fichas, a banca fecha e começas outra. Também a podes fechar quando quiseres.</li>" +
-      "<li>Cada banca fechada entra no ranking do casino com o maior saldo que atingiu.</li></ul>";
+      "<li>Cada banca fechada entra no ranking do casino com o maior saldo que atingiu.</li></ul>" + C.helpNote;
   }
 
   Sala.registerGame({

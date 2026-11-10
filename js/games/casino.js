@@ -82,6 +82,26 @@
     listeners.forEach(f => f());
   }
 
+  /* Aviso à entrada (Fase 8.2): aparece sempre que se entra no Blackjack ou na Roleta.
+     Linha 1414 do ICAD confirmada em srij.turismodeportugal.pt e icad.pt (novembro de 2026). */
+  const SUPPORT = 'Se o jogo a dinheiro te está a causar problemas, a ti ou a alguém próximo, liga para a <a href="tel:1414"><b>Linha 1414</b></a> do ICAD: gratuita, anónima e confidencial, nos dias úteis das 10h às 18h.';
+  casino.helpNote = "<h4>Jogo responsável</h4><p>As fichas são virtuais: não valem dinheiro, não se compram e não se trocam por prémios. Mesmo assim, os jogos de casino podem criar hábito e são recomendados a maiores de 18 anos.</p><p>" + SUPPORT + "</p>";
+  casino.warn = function (onEnter, onBack) {
+    let entered = false;
+    modal.open({
+      title: "Antes de entrar no casino",
+      className: "help casino-warn",
+      body: "<ul><li>As fichas são <b>virtuais</b>: não valem dinheiro, não se compram e não se trocam por prémios.</li>" +
+        "<li>Mesmo a feijões, os jogos de casino <b>podem criar hábito</b>. São recomendados a <b>maiores de 18 anos</b>.</li></ul>" +
+        "<p class=\"cw-help\">" + SUPPORT + "</p>",
+      actions: [
+        { label: "Voltar" },
+        { label: "Tenho 18 anos ou mais · Entrar", primary: true, onClick: () => { entered = true; } }
+      ],
+      onClose: () => { if (entered) setTimeout(onEnter, 0); else setTimeout(onBack, 0); }
+    });
+  };
+
   Sala.casino = casino;
 
   /* Ranking comum aos dois jogos (não aparece no menu). */

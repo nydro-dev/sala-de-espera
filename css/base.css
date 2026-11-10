@@ -646,3 +646,9 @@ html.cb-lock,html.cb-lock body{overscroll-behavior:none;touch-action:none;overfl
 .ol-days span{font-weight:500;text-align:center;flex:1}
 .ol-days .btn{min-width:44px;font-size:1.3rem;padding:0 10px}
 .ol-days .btn:disabled{opacity:.35;cursor:default}
+
+/* Aviso à entrada do casino (Fase 8.2) */
+.casino-warn ul{padding-left:18px;margin:0 0 10px}
+.casino-warn li{margin:6px 0}
+.casino-warn .cw-help{padding:10px 12px;border-radius:12px;background:var(--sunken);font-size:.88rem}
+.casino-warn a,.help a[href^="tel:"]{color:var(--blue-ink);text-decoration:underline;text-underline-offset:2px}
