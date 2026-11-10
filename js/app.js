@@ -66,7 +66,7 @@
      em nenhuma secção vão para "Outros", para nunca desaparecerem do menu. */
   const SECTIONS = [
     { id: "puz", label: "Puzzles", ids: ["sudoku", "minas", "palavras", "soli"] },
-    { id: "arc", label: "Arcada", ids: ["dobra", "cobra"] },
+    { id: "arc", label: "Arcada", ids: ["dobra", "cobra", "nata"] },
     { id: "cas", label: "Casino", ids: ["blackjack", "roleta"] }
   ];
   function tile(g, sec, soon) {
@@ -153,6 +153,7 @@
       $("v-menu").hidden = true; $("v-game").hidden = false;
       const t = duelData ? "Duelo · " + g.name : isDaily ? (g.dailyTitle || g.name + " do dia") : g.name;
       $("g-title").textContent = t; document.title = t + " · Sala de Espera";
+      $("g-rank").hidden = !!g.noRank; /* jogos sem ranking (Pastel de Nata) */
       active = g; g.mount(body, { daily: !!isDaily, duel: duelData });
       if (!store.get("seenHelp:" + g.id, false)) { store.set("seenHelp:" + g.id, true); setTimeout(() => Sala.showHelp(g.id), 250); }
     } else {

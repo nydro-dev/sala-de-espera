@@ -791,7 +791,7 @@
   /* ---------- Janela de ranking e estatísticas ---------- */
   function showRanking(gameId, diff, highlightId, view) {
     /* Jogos que partilham ranking (o casino) aparecem uma só vez, com o nome do grupo. */
-    const ready = games.filter(x => (x.ready && !x.rankAs) || x.rankable);
+    const ready = games.filter(x => !x.noRank && ((x.ready && !x.rankAs) || x.rankable));
     const asked = gameById(gameId);
     if (asked && asked.rankAs) gameId = asked.rankAs;
     let g = gameById(gameId) || ready[0];

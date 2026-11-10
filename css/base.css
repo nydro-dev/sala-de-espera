@@ -137,12 +137,20 @@ h1,h2,h3{margin:0;line-height:1.15}
 @media (hover:none){.mn-tile:not(:disabled):hover{border-color:var(--t-edge)}}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .mn-cas{--t-bg:#0A0F1C}}
 :root[data-theme="dark"] .mn-cas{--t-bg:#0A0F1C}
-/* A partir de 600 px: 4 por linha, com a Arcada e o Casino lado a lado */
+/* No telemóvel (2 por linha), um cartão que fique sozinho na última linha ocupa-a toda, deitado. */
+@media (max-width:599.98px){
+  .mn-tiles>.mn-tile:last-child:nth-child(odd){grid-column:1/-1;aspect-ratio:2.1;flex-direction:row;align-items:stretch}
+  .mn-tiles>.mn-tile:last-child:nth-child(odd) .mn-art{flex:0 0 50%;padding:10px 0 10px 8px}
+  .mn-tiles>.mn-tile:last-child:nth-child(odd) .mn-txt{flex:1;align-self:flex-end;padding:0 12px 11px 6px}
+  .mn-tiles>.mn-tile:last-child:nth-child(odd) .mn-txt b{white-space:normal}
+}
+/* A partir de 600 px: 4 por linha; a Arcada (3) e o Casino (2) lado a lado, com cartões do mesmo tamanho */
 @media (min-width:600px){
   .mn-tiles{grid-template-columns:repeat(4,minmax(0,1fr))}
-  .mn-shelves{grid-template-columns:1fr 1fr;column-gap:10px}
+  .mn-shelves{grid-template-columns:3fr 2fr;column-gap:10px}
   .mn-shelf-puz,.mn-shelf-out{grid-column:1/-1}
-  .mn-shelf-arc .mn-tiles,.mn-shelf-cas .mn-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .mn-shelf-arc .mn-tiles{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .mn-shelf-cas .mn-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 /* No PC: descrição por baixo do nome */
 @media (min-width:900px){
@@ -652,3 +660,42 @@ html.cb-lock,html.cb-lock body{overscroll-behavior:none;touch-action:none;overfl
 .casino-warn li{margin:6px 0}
 .casino-warn .cw-help{padding:10px 12px;border-radius:12px;background:var(--sunken);font-size:.88rem}
 .casino-warn a,.help a[href^="tel:"]{color:var(--blue-ink);text-decoration:underline;text-underline-offset:2px}
+
+/* ---------- Pastel de Nata (jogo idle) ---------- */
+.nt-oven{position:relative;width:100%;display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:4px;user-select:none;-webkit-user-select:none}
+.nt-pastel{width:min(62vw,240px);aspect-ratio:1;border:0;background:none;padding:0;border-radius:50%;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.nt-pastel svg{width:100%;height:100%;display:block;filter:drop-shadow(0 6px 14px rgba(91,46,14,.18))}
+.nt-pastel:focus-visible{outline:3px solid var(--blue);outline-offset:4px}
+:root.anim .nt-pastel.hit{animation:nt-hit .16s ease-out}
+@keyframes nt-hit{40%{transform:scale(.94)}100%{transform:scale(1)}}
+.nt-float{position:absolute;transform:translate(-50%,-50%);pointer-events:none;font-weight:900;font-size:1.1rem;color:var(--blue-ink);text-shadow:0 1px 0 var(--surface);animation:nt-up .9s ease-out forwards;font-variant-numeric:tabular-nums}
+@keyframes nt-up{to{transform:translate(-50%,-260%);opacity:0}}
+.nt-hint{min-height:1.2em}
+.nt-convent{width:100%;display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:var(--r);border:1px solid color-mix(in srgb,var(--yellow) 60%,var(--line));background:var(--yellow-soft)}
+.nt-convent[hidden]{display:none}
+.nt-convent div{flex:1;min-width:0}
+.nt-convent b{display:block;font-weight:900}
+.nt-convent span{display:block;font-size:.85rem;color:var(--muted)}
+.nt-qty{align-self:stretch}
+.nt-qty[hidden]{display:none}
+.nt-list{display:flex;flex-direction:column;gap:8px}
+.nt-row{display:flex;align-items:center;gap:10px;width:100%;padding:8px 12px 8px 8px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--surface);color:var(--ink);text-align:left}
+.nt-row.ok{border-color:color-mix(in srgb,var(--blue) 45%,var(--line))}
+.nt-row.ok:hover{border-color:var(--blue)}
+:root.anim .nt-row.ok:active{transform:scale(.985)}
+.nt-ic{flex:0 0 38px;height:38px;display:grid;place-items:center;border-radius:10px;background:var(--surface-2);font-weight:900;color:var(--muted)}
+.nt-ic svg{width:30px;height:30px}
+.nt-tx{flex:1;min-width:0}
+.nt-tx b{display:block;font-weight:700;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nt-tx b em{font-style:normal;color:var(--blue-ink);font-weight:900}
+.nt-tx span{display:block;font-size:.8rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nt-cost{flex:none;font-weight:700;font-size:.88rem;font-variant-numeric:tabular-nums;padding:4px 9px;border-radius:999px;background:var(--sunken);color:var(--ink)}
+.nt-row.ok .nt-cost{background:var(--blue);color:var(--on-blue)}
+.nt-locked{opacity:.5;border-style:dashed}
+.nt-empty{text-align:left}
+.nt-dot{position:relative}
+.nt-dot::after{content:"";position:absolute;top:6px;right:8px;width:7px;height:7px;border-radius:50%;background:var(--yellow)}
+.nt-away-art{width:96px;margin:0 auto 8px}
+.nt-away-art svg{width:100%;display:block}
+.nt-away p{text-align:center}
+.stats.nt-stats{grid-template-columns:1fr 1fr}

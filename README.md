@@ -11,10 +11,11 @@ Jogos curtos numa app web instalável (PWA), feita para jogar nos intervalos. Fu
 - **Solitário** clássico de sete colunas, a tirar três cartas do baralho, com toque ou arrastar, desfazer e "completar sozinho".
 - **Dobra**: juntar peças iguais, que dobram de valor, em tabuleiros de 3×3, 4×4 e 5×5, com três jogadas para desfazer por jogo.
 - **Cobra** em três velocidades, com ou sem paredes, e uma maçã dourada de vez em quando.
+- **Pastel de Nata**: jogo idle. Começa-se a enrolar massa à mão e acaba-se com uma rede de pastelarias que chega à Lua. Os fornos trabalham sozinhos com a app fechada (até 8 horas) e dá para "fundar um novo convento" (recomeçar com um bónus permanente). Não entra em rankings e não tem nada à venda.
 
 O Blackjack e a Roleta partilham uma banca de fichas virtuais (sem valor real e sem compras), que começa com 1000 fichas. Cada banca, quando fecha, entra no ranking do casino com o maior saldo que atingiu. Sempre que se entra no Blackjack ou na Roleta aparece um aviso: as fichas não valem dinheiro, os jogos de casino podem criar hábito e são recomendados a maiores de 18 anos, com a Linha 1414 do ICAD para quem tenha problemas com o jogo a dinheiro.
 
-Cada jogo tem uma janela "Como jogar", pontuação e um top 10 (por dificuldade, tabuleiro ou modo, consoante o jogo).
+Cada jogo tem uma janela "Como jogar" e, exceto o Pastel de Nata, pontuação e um top 10 (por dificuldade, tabuleiro ou modo, consoante o jogo).
 
 ## Desafio do dia, estatísticas e partilha
 - **Desafio do dia** (no topo do menu): a palavra do dia, um Sudoku Médio, um campo de Minas Médio e um baralho de Solitário iguais para toda a gente nesse dia, gerados a partir da data. Só a primeira tentativa conta; depois dá para repetir sem contar (exceto a palavra, que é uma por dia). As Minas do dia começam com uma zona já aberta, e o Solitário do dia pode terminar-se a meio, ficando os pontos feitos.
@@ -61,6 +62,7 @@ No Android, ou no Chrome e no Edge do computador, a opção chama-se "Instalar a
 - `functions/api/visita.js` e `server/visitas.sql`: contador de visitas (Cloudflare Pages Functions + D1).
 - `functions/api/conta.js`, `sessao.js`, `senha.js`, `reserva.js`, `recuperar.js`, `resultado.js` e `ranking.js`, `server/lib/` e `server/online.sql`: servidor do ranking online (`server/contas-v2.sql` passou a base da Fase 8 para as contas com palavra-passe).
 - `scripts/publicar.sh` e `wrangler.toml`: publicação na Cloudflare.
+- `scripts/simular-nata.js`: simulador que joga o Pastel de Nata sozinho durante semanas, para afinar os custos e as produções (`node scripts/simular-nata.js 30`).
 
 Sem frameworks nem compilação: o alojamento serve os ficheiros tal como estão.
 

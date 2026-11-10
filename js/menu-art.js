@@ -122,6 +122,16 @@
     return svg(s);
   }
 
+  /* Pastel de Nata: dois pastéis, vapor e canela a cair (desenho de js/games/nata.js). */
+  function nata() {
+    const p = Sala.nataArt; if (!p) return svg("");
+    const inner = (id, x, y, w) => p(id).replace("<svg ", '<svg x="' + x + '" y="' + y + '" width="' + w + '" height="' + w + '" ');
+    let s = inner("ntm1", 14, 30, 74) + inner("ntm2", 62, 14, 92);
+    s += '<path d="M96 12c-4-5 4-7 0-12M110 10c-4-5 4-7 0-12M124 12c-4-5 4-7 0-12" stroke="var(--ink)" stroke-width="2" fill="none" stroke-linecap="round" opacity=".3" transform="translate(0 4)"/>';
+    s += [[30, 20], [38, 14], [46, 22], [24, 12], [52, 10]].map(([x, y]) => '<circle cx="' + x + '" cy="' + y + '" r="1.6" fill="#8E561C" opacity=".7"/>').join("");
+    return svg(s);
+  }
+
   /* ---------- Casino (fundo sempre escuro) ---------- */
   function blackjack() {
     let s = '<ellipse cx="80" cy="128" rx="110" ry="46" fill="none" stroke="#E0A526" stroke-width="1.4" opacity=".35"/>';
@@ -153,5 +163,5 @@
     return svg(s);
   }
 
-  Sala.menuArt = { sudoku, minas, palavras, soli: solitario, dobra, cobra, blackjack, roleta };
+  Sala.menuArt = { sudoku, minas, palavras, soli: solitario, dobra, cobra, nata, blackjack, roleta };
 })();
